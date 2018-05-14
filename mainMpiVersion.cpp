@@ -28,26 +28,20 @@ int main(int argc, char **argv) {
     MPI_Comm_rank (MPI_COMM_WORLD, &myRank);    /* get current process id */
     MPI_Comm_size (MPI_COMM_WORLD, &size);      /* get number of processes */
 
-    int previous_process_rank;
-    int next_process_rank;
-    for (int i = 0 ; i < size ; i++) {
-        previous_process_rank = myRank == 0 ? MPI_PROC_NULL : myRank-1;
-        next_process_rank = myRank == size-1 ? MPI_PROC_NULL : myRank+1;
-    }
-
-    clock_t begin = clock();
+    double begin = MPI_Wtime();
     double T = 1;
     int j0 = 100;
     double t = T / j0;
 
     double l = 1;
-    int N = 99;       //фактичски N будет 100. Так сделано для удобства индексирования
+    int N = 49;//фактичски N будет на 1 больше. Так сделано для удобства индексации, чтобы можно было обращаться по индексу N (y[N][i2][i3])
     double h = l / N;
-    int r = (N+1) / size;
+    int r = (N+1 + size - 1) / size;   // деление с округлением вверх
+    int r_last_process = (N+1) - r * (size-1);
 
     double *** y = alloc3d(N+1, N+1, N+1);
     for (int i = 0 ; i <= N ; i++) {
-        for (int j = 0 + r * myRank ; j < (myRank+1) * r; j++) {
+        for (int j = r * myRank ; j < (myRank == size -1 ? N+1 : (myRank+1) * r); j++) {
             for (int k = 0 ; k <= N ; k++) {
                 y[i][j][k] = u0(i*h, j*h, k*h);
             }
@@ -57,12 +51,13 @@ int main(int argc, char **argv) {
     double epsilon = 2 * h * h / t;
 
     MPI_Request recv_request = MPI_REQUEST_NULL;
-    MPI_Request send_request = MPI_REQUEST_NULL;
-
+    MPI_Status status;
+    MPI_Request send_requests[size-1];
+    MPI_Status statuses[size-1];
 
     for (int j = 0 ; j < j0; j++) {
         for (int i = 0 ; i <= N ; i++) {
-            for (int k = 0 + r * myRank ; k < (myRank+1) * r ; k++) {
+            for (int k = r * myRank ; k < (myRank == size -1 ? N+1 : (myRank+1) * r) ; k++) {
                 y[0][k][i] = a0(i*h, k*h, j*t);
                 y[N][k][i] = a1(l, i*h, k*h, j*t);
 
@@ -81,7 +76,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        for (int i2 = 0 + r * myRank ; i2 < (myRank+1) * r ; i2++) {
+        for (int i2 = r * myRank ; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i2++) {
             for (int i3 = 0 ; i3 <= N ; i3++) {
                 double * ai = new double[N+1];
                 double * bi = new double[N+1];
@@ -108,56 +103,61 @@ int main(int argc, char **argv) {
             }
         }
 
-        if (myRank == 0) {
-            MPI_Datatype mysubarray1;
-            int starts1[3] = {r, 0, 0};
-            int subsizes1[3] = {r, r, N+1};
-            int bigsizes1[3] = {N+1, N+1, N+1};
-            MPI_Type_create_subarray(3, bigsizes1, subsizes1, starts1, MPI_ORDER_C, MPI_DOUBLE, &mysubarray1);
-            MPI_Type_commit(&mysubarray1);
-            MPI_Isend(&(y[0][0][0]), 1, mysubarray1, 1, 100500, MPI_COMM_WORLD, &send_request);
+        for (int i = 0 ; i < size ; i++) {
+            if (i != myRank) {  // i тот кому будем посылать
+                MPI_Datatype subarray_3d;
+                int starts[3] = {r*i, myRank*r, 0};
+                int subsizes[3] = {
 
-        } else {
-            MPI_Datatype mysubarray1;
-            int starts1[3] = {0, r, 0};
-            int subsizes1[3] = {r, r, N+1};
-            int bigsizes1[3] = {N+1, N+1, N+1};
-            MPI_Type_create_subarray(3, bigsizes1, subsizes1, starts1, MPI_ORDER_C, MPI_DOUBLE, &mysubarray1);
-            MPI_Type_commit(&mysubarray1);
-            MPI_Isend(&(y[0][0][0]), 1, mysubarray1, 0, 100500, MPI_COMM_WORLD, &send_request);
+                        i == size-1 ? r_last_process : r,      // если посылаем последнму
+                        myRank == size-1 ? r_last_process : r, // если посылает последний
+                                   N+1};
+                int bigsizes[3] = {N+1, N+1, N+1};
+                MPI_Type_create_subarray(3, bigsizes, subsizes, starts, MPI_ORDER_C, MPI_DOUBLE, &subarray_3d);
+                MPI_Type_commit(&subarray_3d);
+                int send_request_index = i < myRank ? i : i-1;
+                MPI_Isend(&(y[0][0][0]), 1, subarray_3d, i, 100500, MPI_COMM_WORLD, &send_requests[send_request_index]);
+                MPI_Type_free(&subarray_3d);
+            }
         }
 
         double*** buffer1 = alloc3d(r, r, N+1);
-        if (myRank == 0) {
-
-            MPI_Irecv(&(buffer1[0][0][0]), r*r*(N+1), MPI_DOUBLE, 1, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
-            MPI_Wait(&send_request, MPI_STATUS_IGNORE);
-            MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
-            for (int i1 = 0 ; i1 < r ; i1++) {
-                for (int i2 = r ; i2 <= N ; i2++) {
-                    for (int i3 = 0 ; i3 <= N ; i3++) {
-                        y[i1][i2][i3] = buffer1[i1][i2-r][i3];
-                    }
+        for (int i = 0 ; i < size ; i++) {
+            int index = i;
+            if (i != myRank) {
+                int recieve_count = N+1;
+                if (myRank == size-1) {
+                    recieve_count *= r_last_process;
+                } else {
+                    recieve_count *= r;
                 }
-            }
-        } else {
-            MPI_Irecv(&(buffer1[0][0][0]), r*r*(N+1), MPI_DOUBLE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
-            MPI_Wait(&send_request, MPI_STATUS_IGNORE);
-            MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
-            for (int i1 = r ; i1 <= N ; i1++) {
-                for (int i2 = 0 ; i2 < r; i2++) {
-                    for (int i3 = 0 ; i3 <= N ; i3++) {
-                        y[i1][i2][i3] = buffer1[i1-r][i2][i3];
+                if (i == size-1) {
+                    recieve_count *= r_last_process;
+                } else {
+                    recieve_count *= r;
+                }
+
+                //MPI_Irecv(&(buffer1[0][0][0]), r * r * (N + 1), MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
+                MPI_Irecv(&(buffer1[0][0][0]), recieve_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
+                //MPI_Wait(&send_requests[0], MPI_STATUS_IGNORE);
+                MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
+//                int send_request_index = i < myRank ? i : i-1;
+//                MPI_Wait(&send_requests[send_request_index], MPI_STATUS_IGNORE);
+
+                for (int i1 = myRank*r ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
+                    for (int i2 = index*r ; i2 < (index == size -1 ? N+1 : (index+1) * r) ; i2++) {
+                        for (int i3 = 0 ; i3 <= N ; i3++) {
+                            y[i1][i2][i3] = buffer1[i1-myRank*r][i2-index*r][i3];
+                        }
                     }
                 }
             }
         }
-
-
+        MPI_Waitall(size-1, send_requests, MPI_STATUS_IGNORE);
 /*
         --------------------------------------------
 */
-        for (int i1 = 0 + r * myRank ; i1 < (myRank+1) * r ; i1++) {
+        for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
             for (int i3 = 0 ; i3 <= N ; i3++) {
                 double * ai = new double[N+1];
                 double * bi = new double[N+1];
@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
         --------------------------------------------
 */
 
-        for (int i1 = 0 + r * myRank ; i1 < (myRank+1) * r ; i1++) {
+        for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
             for (int i2 = 0 ; i2 <= N ; i2++) {
 
                 double * ai = new double[N+1];
@@ -214,11 +214,11 @@ int main(int argc, char **argv) {
                 delete[] bi;
             }
         }
-//
-//
-//
+/*
+      Проверка точности приближённого решения
+*/
         double maxDifference = 0;
-        for (int i1 = 0 + r * myRank ; i1 < (myRank+1) * r ; i1++)
+        for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++)
         {
             for (int i2 = 0; i2 <= N; ++i2)
             {
@@ -234,52 +234,52 @@ int main(int argc, char **argv) {
         cout << endl << myRank << ": " << maxDifference << endl;
         MPI_Barrier(MPI_COMM_WORLD);
 
-        if (myRank == 0) {
-            MPI_Datatype mysubarray1;
-            int starts1[3] = {0, r, 0};
-            int subsizes1[3] = {r, r, N+1};
-            int bigsizes1[3] = {N+1, N+1, N+1};
-            MPI_Type_create_subarray(3, bigsizes1, subsizes1, starts1, MPI_ORDER_C, MPI_DOUBLE, &mysubarray1);
-            MPI_Type_commit(&mysubarray1);
-            MPI_Isend(&(y[0][0][0]), 1, mysubarray1, 1, 100500, MPI_COMM_WORLD, &send_request);
-        } else {
-            MPI_Datatype mysubarray1;
-            int starts1[3] = {r, 0, 0};
-            int subsizes1[3] = {r, r, N+1};
-            int bigsizes1[3] = {N+1, N+1, N+1};
-            MPI_Type_create_subarray(3, bigsizes1, subsizes1, starts1, MPI_ORDER_C, MPI_DOUBLE, &mysubarray1);
-            MPI_Type_commit(&mysubarray1);
-            MPI_Isend(&(y[0][0][0]), 1, mysubarray1, 0, 100500, MPI_COMM_WORLD, &send_request);
+        for (int i = 0 ; i < size ; i++) {
+            if (i != myRank) {
+                MPI_Datatype subarray_3d;
+                int starts[3] = {myRank*r, r*i, 0};
+                int subsizes[3] = {myRank == size-1 ? r_last_process : r, // если посылает последний
+                                   i == size-1 ? r_last_process : r,      // если посылаем последнму
+                                   N+1};
+                int bigsizes[3] = {N+1, N+1, N+1};
+                MPI_Type_create_subarray(3, bigsizes, subsizes, starts, MPI_ORDER_C, MPI_DOUBLE, &subarray_3d);
+                MPI_Type_commit(&subarray_3d);
+                int send_request_index = i < myRank ? i : i-1;
+                MPI_Isend(&(y[0][0][0]), 1, subarray_3d, i, 100500, MPI_COMM_WORLD, &send_requests[send_request_index]);
+                //MPI_Type_free(&subarray_3d);
+            }
         }
 
-        if (myRank == 0) {
-            MPI_Irecv(&(buffer1[0][0][0]), r*r*(N+1), MPI_DOUBLE, 1, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
-            MPI_Wait(&send_request, MPI_STATUS_IGNORE);
-            MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
-            for (int i1 = r ; i1 <= N ; i1++) {
-                for (int i2 = 0 ; i2 < r; i2++) {
-                    for (int i3 = 0 ; i3 <= N ; i3++) {
-                        y[i1][i2][i3] = buffer1[i1-r][i2][i3];
-                    }
+        for (int i = 0 ; i < size ; i++) {
+            int index = i;
+            if (i != myRank) {
+                int recieve_count = N+1;
+                if (myRank == size-1) {
+                    recieve_count *= r_last_process;
+                } else {
+                    recieve_count *= r;
                 }
-            }
-        } else {
-            MPI_Irecv(&(buffer1[0][0][0]), r*r*(N+1), MPI_DOUBLE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
-            MPI_Wait(&send_request, MPI_STATUS_IGNORE);
-            MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
-            for (int i1 = 0 ; i1 < r ; i1++) {
-                for (int i2 = r ; i2 <= N ; i2++) {
-                    for (int i3 = 0 ; i3 <= N ; i3++) {
-                        y[i1][i2][i3] = buffer1[i1][i2-r][i3];
+                if (i == size-1) {
+                    recieve_count *= r_last_process;
+                } else {
+                    recieve_count *= r;
+                }
+                MPI_Irecv(&(buffer1[0][0][0]), recieve_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
+                MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
+
+                for (int i1 = index*r ; i1 < (index == size -1 ? N+1 : (index+1) * r) ; i1++) {
+                    for (int i2 = myRank*r ; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i2++) {
+                        for (int i3 = 0 ; i3 <= N ; i3++) {
+                            y[i1][i2][i3] = buffer1[i1-index*r][i2-myRank*r][i3];
+                        }
                     }
                 }
             }
         }
     }
 
-    clock_t end = clock();
-    double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-
+    double end = MPI_Wtime();
+    double elapsed_secs = double(end - begin);
     cout << "Time: " << elapsed_secs << endl;
 
     MPI_Finalize();
