@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
     double t = T / j0;
 
     double l = 1;
-    int N = 49;//фактичски N будет на 1 больше. Так сделано для удобства индексации, чтобы можно было обращаться по индексу N (y[N][i2][i3])
+    int N = 599;//фактичски N будет на 1 больше. Так сделано для удобства индексации, чтобы можно было обращаться по индексу N (y[N][i2][i3])
     double h = l / N;
     int r = (N+1 + size - 1) / size;   // деление с округлением вверх
     int r_last_process = (N+1) - r * (size-1);
@@ -108,10 +108,9 @@ int main(int argc, char **argv) {
                 MPI_Datatype subarray_3d;
                 int starts[3] = {r*i, myRank*r, 0};
                 int subsizes[3] = {
-
                         i == size-1 ? r_last_process : r,      // если посылаем последнму
                         myRank == size-1 ? r_last_process : r, // если посылает последний
-                                   N+1};
+                        N+1};
                 int bigsizes[3] = {N+1, N+1, N+1};
                 MPI_Type_create_subarray(3, bigsizes, subsizes, starts, MPI_ORDER_C, MPI_DOUBLE, &subarray_3d);
                 MPI_Type_commit(&subarray_3d);
@@ -121,8 +120,9 @@ int main(int argc, char **argv) {
             }
         }
 
-        double*** buffer1 = alloc3d(r, r, N+1);
+
         for (int i = 0 ; i < size ; i++) {
+            double*** buffer1;
             int index = i;
             if (i != myRank) {
                 int recieve_count = N+1;
@@ -136,6 +136,16 @@ int main(int argc, char **argv) {
                 } else {
                     recieve_count *= r;
                 }
+                if (myRank == size-1 && i == size-1) {
+                    buffer1 = alloc3d(r_last_process, r_last_process, N+1);
+                } else if (myRank == size-1) {
+                    buffer1 = alloc3d(r_last_process, r, N+1);
+                } else if (i == size-1) {
+                    buffer1 = alloc3d(r, r_last_process, N+1);
+                } else {
+                    buffer1 = alloc3d(r, r, N+1);
+                }
+
 
                 //MPI_Irecv(&(buffer1[0][0][0]), r * r * (N + 1), MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Irecv(&(buffer1[0][0][0]), recieve_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
@@ -253,6 +263,7 @@ int main(int argc, char **argv) {
         for (int i = 0 ; i < size ; i++) {
             int index = i;
             if (i != myRank) {
+                double*** buffer1;
                 int recieve_count = N+1;
                 if (myRank == size-1) {
                     recieve_count *= r_last_process;
@@ -264,6 +275,16 @@ int main(int argc, char **argv) {
                 } else {
                     recieve_count *= r;
                 }
+                if (myRank == size-1 && i == size-1) {
+                    buffer1 = alloc3d(r_last_process, r_last_process, N+1);
+                } else if (myRank == size-1) {
+                    buffer1 = alloc3d(r, r_last_process, N+1);
+                } else if (i == size-1) {
+                    buffer1 = alloc3d(r_last_process, r, N+1);
+                } else {
+                    buffer1 = alloc3d(r, r, N+1);
+                }
+
                 MPI_Irecv(&(buffer1[0][0][0]), recieve_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
 
@@ -274,6 +295,14 @@ int main(int argc, char **argv) {
                         }
                     }
                 }
+
+//                for (int i1 = index*r ; i1 < (index == size -1 ? N+1 : (index+1) * r) ; i1++) {
+//                    for (int i2 = myRank*r ; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i2++) {
+//                        delete [] buffer1[i][j];
+//                    }
+//                    delete [] buffer1[i];
+//                }
+//                delete [] buffer1;
             }
         }
     }
