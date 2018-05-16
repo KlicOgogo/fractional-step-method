@@ -161,6 +161,29 @@ int main(int argc, char **argv) {
                         }
                     }
                 }
+                delete[] buffer1[0][0];
+                if (myRank == size-1 && i == size-1) {
+                    for (int i = 0; i < r_last_process; ++i)
+                    {              
+                        delete [] buffer1[i];
+                    }
+                } else if (myRank == size-1) {
+                    for (int i = 0; i < r_last_process; ++i)
+                    {                     
+                        delete [] buffer1[i];
+                    }
+                } else if (i == size-1) {
+                    for (int i = 0; i < r; ++i)
+                    {                 
+                        delete [] buffer1[i];
+                    }
+                } else {
+                    for (int i = 0; i < r; ++i)
+                    {                 
+                        delete [] buffer1[i];
+                    }                   
+                }
+                delete [] buffer1;
             }
         }
         MPI_Waitall(size-1, send_requests, MPI_STATUS_IGNORE);
@@ -295,6 +318,29 @@ int main(int argc, char **argv) {
                         }
                     }
                 }
+                delete[] buffer1[0][0];
+                if (myRank == size-1 && i == size-1) {
+                    for (int i = 0; i < r_last_process; ++i)
+                    {
+                        delete [] buffer1[i];
+                    }
+                } else if (myRank == size-1) {
+                    for (int i = 0; i < r; ++i)
+                    {
+                        delete [] buffer1[i];
+                    }
+                } else if (i == size-1) {
+                    for (int i = 0; i < r_last_process; ++i)
+                    {
+                        delete [] buffer1[i];
+                    }
+                } else {
+                    for (int i = 0; i < r; ++i)
+                    {
+                        delete [] buffer1[i];
+                    }
+                }
+                delete [] buffer1;
 
 //                for (int i1 = index*r ; i1 < (index == size -1 ? N+1 : (index+1) * r) ; i1++) {
 //                    for (int i2 = myRank*r ; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i2++) {
