@@ -21,6 +21,102 @@ double ***alloc3d(int x, int y, int z) {
     return array;
 }
 
+double ***alloc_memory_for_first_receive(int myRank, int processRank, int size, int r_last_process, int r, int N) {
+    double*** buffer;
+    if (myRank == size-1 && processRank == size-1) {
+        buffer = alloc3d(r_last_process, r_last_process, N+1);
+    } else if (myRank == size-1) {
+        buffer = alloc3d(r_last_process, r, N+1);
+    } else if (processRank == size-1) {
+        buffer = alloc3d(r, r_last_process, N+1);
+    } else {
+        buffer = alloc3d(r, r, N+1);
+    }
+    return buffer;
+}
+
+void clear_memory_after_first_receive(double*** buffer, int myRank, int processRank, int size, int r_last_process, int r) {
+    delete[] buffer[0][0];
+    if (myRank == size-1 && processRank == size-1) {
+        for (int i = 0; i < r_last_process; ++i)
+        {
+            delete [] buffer[i];
+        }
+    } else if (myRank == size-1) {
+        for (int i = 0; i < r_last_process; ++i)
+        {
+            delete [] buffer[i];
+        }
+    } else if (processRank == size-1) {
+        for (int i = 0; i < r; ++i)
+        {
+            delete [] buffer[i];
+        }
+    } else {
+        for (int i = 0; i < r; ++i)
+        {
+            delete [] buffer[i];
+        }
+    }
+    delete [] buffer;
+}
+
+double ***alloc_memory_for_second_receive(int myRank, int processRank, int size, int r_last_process, int r, int N) {
+    double*** buffer;
+    if (myRank == size-1 && processRank == size-1) {
+        buffer = alloc3d(r_last_process, r_last_process, N+1);
+    } else if (myRank == size-1) {
+        buffer = alloc3d(r, r_last_process, N+1);
+    } else if (processRank == size-1) {
+        buffer = alloc3d(r_last_process, r, N+1);
+    } else {
+        buffer = alloc3d(r, r, N+1);
+    }
+    return buffer;
+}
+
+void clear_memory_after_second_receive(double*** buffer, int myRank, int processRank, int size, int r_last_process, int r) {
+    delete[] buffer[0][0];
+    if (myRank == size-1 && processRank == size-1) {
+        for (int i = 0; i < r_last_process; ++i)
+        {
+            delete [] buffer[i];
+        }
+    } else if (myRank == size-1) {
+        for (int i = 0; i < r; ++i)
+        {
+            delete [] buffer[i];
+        }
+    } else if (processRank == size-1) {
+        for (int i = 0; i < r_last_process; ++i)
+        {
+            delete [] buffer[i];
+        }
+    } else {
+        for (int i = 0; i < r; ++i)
+        {
+            delete [] buffer[i];
+        }
+    }
+    delete [] buffer;
+}
+
+
+// так как сторона куба не всегда кратна кол-ву процессов, то надо посчитать куб какого размера должны прислать текущему процессу
+int calculate_receive_count(int N, int myRank, int processRank, int size, int r, int r_last_process) {
+    int receive_count = N+1;
+    if (myRank == size-1) {
+        receive_count *= r_last_process;
+    } else {
+        receive_count *= r;
+    }
+    if (processRank == size-1) {
+        receive_count *= r_last_process;
+    } else {
+        receive_count *= r;
+    }
+}
+
 int main(int argc, char **argv) {
     int myRank, size;
 
@@ -34,7 +130,7 @@ int main(int argc, char **argv) {
     double t = T / j0;
 
     double l = 1;
-    int N = 599;//фактичски N будет на 1 больше. Так сделано для удобства индексации, чтобы можно было обращаться по индексу N (y[N][i2][i3])
+    int N = 99;//фактичски N будет на 1 больше. Так сделано для удобства индексации, чтобы можно было обращаться по индексу N (y[N][i2][i3])
     double h = l / N;
     int r = (N+1 + size - 1) / size;   // деление с округлением вверх
     int r_last_process = (N+1) - r * (size-1);
@@ -122,68 +218,23 @@ int main(int argc, char **argv) {
 
 
         for (int i = 0 ; i < size ; i++) {
-            double*** buffer1;
+            double*** buffer;
             int index = i;
             if (i != myRank) {
-                int recieve_count = N+1;
-                if (myRank == size-1) {
-                    recieve_count *= r_last_process;
-                } else {
-                    recieve_count *= r;
-                }
-                if (i == size-1) {
-                    recieve_count *= r_last_process;
-                } else {
-                    recieve_count *= r;
-                }
-                if (myRank == size-1 && i == size-1) {
-                    buffer1 = alloc3d(r_last_process, r_last_process, N+1);
-                } else if (myRank == size-1) {
-                    buffer1 = alloc3d(r_last_process, r, N+1);
-                } else if (i == size-1) {
-                    buffer1 = alloc3d(r, r_last_process, N+1);
-                } else {
-                    buffer1 = alloc3d(r, r, N+1);
-                }
+                int receive_count = calculate_receive_count(N, myRank, i, size, r, r_last_process);
+                double *** buffer = alloc_memory_for_first_receive(myRank, i, size, r_last_process, r, N);
 
-
-                //MPI_Irecv(&(buffer1[0][0][0]), r * r * (N + 1), MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
-                MPI_Irecv(&(buffer1[0][0][0]), recieve_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
-                //MPI_Wait(&send_requests[0], MPI_STATUS_IGNORE);
+                MPI_Irecv(&(buffer[0][0][0]), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
-//                int send_request_index = i < myRank ? i : i-1;
-//                MPI_Wait(&send_requests[send_request_index], MPI_STATUS_IGNORE);
 
                 for (int i1 = myRank*r ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
                     for (int i2 = index*r ; i2 < (index == size -1 ? N+1 : (index+1) * r) ; i2++) {
                         for (int i3 = 0 ; i3 <= N ; i3++) {
-                            y[i1][i2][i3] = buffer1[i1-myRank*r][i2-index*r][i3];
+                            y[i1][i2][i3] = buffer[i1-myRank*r][i2-index*r][i3];
                         }
                     }
                 }
-                delete[] buffer1[0][0];
-                if (myRank == size-1 && i == size-1) {
-                    for (int i = 0; i < r_last_process; ++i)
-                    {              
-                        delete [] buffer1[i];
-                    }
-                } else if (myRank == size-1) {
-                    for (int i = 0; i < r_last_process; ++i)
-                    {                     
-                        delete [] buffer1[i];
-                    }
-                } else if (i == size-1) {
-                    for (int i = 0; i < r; ++i)
-                    {                 
-                        delete [] buffer1[i];
-                    }
-                } else {
-                    for (int i = 0; i < r; ++i)
-                    {                 
-                        delete [] buffer1[i];
-                    }                   
-                }
-                delete [] buffer1;
+                clear_memory_after_first_receive(buffer, myRank, i, size, r_last_process, r);
             }
         }
         MPI_Waitall(size-1, send_requests, MPI_STATUS_IGNORE);
@@ -279,76 +330,27 @@ int main(int argc, char **argv) {
                 MPI_Type_commit(&subarray_3d);
                 int send_request_index = i < myRank ? i : i-1;
                 MPI_Isend(&(y[0][0][0]), 1, subarray_3d, i, 100500, MPI_COMM_WORLD, &send_requests[send_request_index]);
-                //MPI_Type_free(&subarray_3d);
+                MPI_Type_free(&subarray_3d);
             }
         }
 
         for (int i = 0 ; i < size ; i++) {
             int index = i;
             if (i != myRank) {
-                double*** buffer1;
-                int recieve_count = N+1;
-                if (myRank == size-1) {
-                    recieve_count *= r_last_process;
-                } else {
-                    recieve_count *= r;
-                }
-                if (i == size-1) {
-                    recieve_count *= r_last_process;
-                } else {
-                    recieve_count *= r;
-                }
-                if (myRank == size-1 && i == size-1) {
-                    buffer1 = alloc3d(r_last_process, r_last_process, N+1);
-                } else if (myRank == size-1) {
-                    buffer1 = alloc3d(r, r_last_process, N+1);
-                } else if (i == size-1) {
-                    buffer1 = alloc3d(r_last_process, r, N+1);
-                } else {
-                    buffer1 = alloc3d(r, r, N+1);
-                }
+                int receive_count = calculate_receive_count(N, myRank, i, size, r, r_last_process);
+                double*** buffer = alloc_memory_for_second_receive(myRank, i, size, r_last_process, r ,N);
 
-                MPI_Irecv(&(buffer1[0][0][0]), recieve_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
+                MPI_Irecv(&(buffer[0][0][0]), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
 
                 for (int i1 = index*r ; i1 < (index == size -1 ? N+1 : (index+1) * r) ; i1++) {
                     for (int i2 = myRank*r ; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i2++) {
                         for (int i3 = 0 ; i3 <= N ; i3++) {
-                            y[i1][i2][i3] = buffer1[i1-index*r][i2-myRank*r][i3];
+                            y[i1][i2][i3] = buffer[i1-index*r][i2-myRank*r][i3];
                         }
                     }
                 }
-                delete[] buffer1[0][0];
-                if (myRank == size-1 && i == size-1) {
-                    for (int i = 0; i < r_last_process; ++i)
-                    {
-                        delete [] buffer1[i];
-                    }
-                } else if (myRank == size-1) {
-                    for (int i = 0; i < r; ++i)
-                    {
-                        delete [] buffer1[i];
-                    }
-                } else if (i == size-1) {
-                    for (int i = 0; i < r_last_process; ++i)
-                    {
-                        delete [] buffer1[i];
-                    }
-                } else {
-                    for (int i = 0; i < r; ++i)
-                    {
-                        delete [] buffer1[i];
-                    }
-                }
-                delete [] buffer1;
-
-//                for (int i1 = index*r ; i1 < (index == size -1 ? N+1 : (index+1) * r) ; i1++) {
-//                    for (int i2 = myRank*r ; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i2++) {
-//                        delete [] buffer1[i][j];
-//                    }
-//                    delete [] buffer1[i];
-//                }
-//                delete [] buffer1;
+                clear_memory_after_second_receive(buffer, myRank, i, size, r_last_process, r);
             }
         }
     }
