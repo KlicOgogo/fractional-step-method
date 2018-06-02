@@ -2,6 +2,8 @@
 #include "startConditions.h"
 #include <math.h>
 #include <ctime>
+#include <stdlib.h>
+#include <fstream>
 #include "/home/alexandr/magistratura/mpi/installationDir/include/mpi.h"
 
 using namespace std;
@@ -118,6 +120,8 @@ int calculate_receive_count(int N, int myRank, int processRank, int size, int r,
 }
 
 int main(int argc, char **argv) {
+    ofstream outputFile;
+    outputFile.open(argv[2], std::ios_base::app);
     int myRank, size;
 
     MPI_Init (&argc, &argv);                    /* starts MPI */
@@ -130,7 +134,8 @@ int main(int argc, char **argv) {
     double t = T / j0;
 
     double l = 1;
-    int N = 99;//фактичски N будет на 1 больше. Так сделано для удобства индексации, чтобы можно было обращаться по индексу N (y[N][i2][i3])
+    //int N = 9;//фактичски N будет на 1 больше. Так сделано для удобства индексации, чтобы можно было обращаться по индексу N (y[N][i2][i3])
+    int N = atoi(argv[1]);
     double h = l / N;
     int r = (N+1 + size - 1) / size;   // деление с округлением вверх
     int r_last_process = (N+1) - r * (size-1);
@@ -358,6 +363,9 @@ int main(int argc, char **argv) {
     double end = MPI_Wtime();
     double elapsed_secs = double(end - begin);
     cout << "Time: " << elapsed_secs << endl;
+    if (myRank == 0) {
+        outputFile << N+1 << " " << elapsed_secs << endl;
+    }
 
     MPI_Finalize();
     return 0;
