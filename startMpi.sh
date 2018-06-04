@@ -1,11 +1,22 @@
 #!/usr/bin/env bash
-/home/alexandr/magistratura/mpi/installationDir/bin/mpic++ -o mainMpiVersion mainMpiVersion.cpp  startConditions.cpp startConditions.h
+#/home/alexandr/magistratura/mpi/installationDir/bin/mpic++ -o mainMpiVersion mainMpiVersion.cpp  startConditions.cpp startConditions.h
+#
+#for N in 9 49 99 199 299 399
+#do
+#    for processesCount in 1 2 3 4
+#    do
+#        /home/alexandr/magistratura/mpi/installationDir/bin/mpiexec -n $processesCount mainMpiVersion $N output$processesCount
+#    done
+#done
 
+
+/data/local/bin/mpic++ -o mainMpiVersion mainMpiVersion.cpp  startConditions.cpp startConditions.h
 for N in 9 49 99 199 299 399
 do
-    for processesCount in 1 2 3 4
+    for processesCount in 1 4 8 12 16 20
     do
-        /home/alexandr/magistratura/mpi/installationDir/bin/mpiexec -n $processesCount mainMpiVersion $N output$processesCount
+        /data/local/bin/mpiexec --allow-run-as-root -n $processesCount --hostfile /data/fractional-step-method/hosts mainMpiVersion $N output$processesCount
+#        /home/alexandr/magistratura/mpi/installationDir/bin/mpiexec -n $processesCount mainMpiVersion $N output$processesCount
     done
 done
 
