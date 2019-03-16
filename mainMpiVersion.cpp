@@ -4,7 +4,7 @@
 #include <ctime>
 #include <stdlib.h>
 #include <fstream>
-#include "/home/alexandr/magistratura/mpi/installationDir/include/mpi.h"
+#include "mpi.h"
 
 using namespace std;
 
@@ -117,6 +117,7 @@ int calculate_receive_count(int N, int myRank, int processRank, int size, int r,
     } else {
         receive_count *= r;
     }
+    return receive_count;
 }
 
 int main(int argc, char **argv) {
