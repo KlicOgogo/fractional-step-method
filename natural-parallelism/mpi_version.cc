@@ -1,10 +1,9 @@
+#include <cmath>
 #include <iostream>
-#include "startConditions.h"
-#include <math.h>
-#include <ctime>
-#include <stdlib.h>
 #include <fstream>
 #include "mpi.h"
+
+#include "common/test_functions.h"
 
 using namespace std;
 
@@ -120,23 +119,27 @@ int calculate_receive_count(int N, int myRank, int processRank, int size, int r,
     return receive_count;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char* argv[]) {
     ofstream outputFile;
-    outputFile.open(argv[2], std::ios_base::app);
+    outputFile.open("result.time", std::ios_base::app);
     int myRank, size;
 
     MPI_Init (&argc, &argv);                    /* starts MPI */
     MPI_Comm_rank (MPI_COMM_WORLD, &myRank);    /* get current process id */
     MPI_Comm_size (MPI_COMM_WORLD, &size);      /* get number of processes */
 
-    double begin = MPI_Wtime();
+    auto start = std::chrono::steady_clock::now();
     double T = 1;
     int j0 = 100;
     double t = T / j0;
 
-    double l = 1;
-    //int N = 9;//фактичски N будет на 1 больше. Так сделано для удобства индексации, чтобы можно было обращаться по индексу N (y[N][i2][i3])
-    int N = atoi(argv[1]);
+
+    int N = 100; // size of grid
+    if (argc == 2) {
+        N = std::atoi(argv[1]);
+    }
+
+    double l = 1.0;
     double h = l / N;
     int r = (N+1 + size - 1) / size;   // деление с округлением вверх
     int r_last_process = (N+1) - r * (size-1);
@@ -145,7 +148,7 @@ int main(int argc, char **argv) {
     for (int i = 0 ; i <= N ; i++) {
         for (int j = r * myRank ; j < (myRank == size -1 ? N+1 : (myRank+1) * r); j++) {
             for (int k = 0 ; k <= N ; k++) {
-                y[i][j][k] = u0(i*h, j*h, k*h);
+                y[i][j][k] = func::u0({i*h, j*h, k*h});
             }
         }
     }
@@ -160,20 +163,20 @@ int main(int argc, char **argv) {
     for (int j = 0 ; j < j0; j++) {
         for (int i = 0 ; i <= N ; i++) {
             for (int k = r * myRank ; k < (myRank == size -1 ? N+1 : (myRank+1) * r) ; k++) {
-                y[0][k][i] = a0(i*h, k*h, j*t);
-                y[N][k][i] = a1(l, i*h, k*h, j*t);
+                y[0][k][i] = func::a0({i*h, k*h}, j*t);
+                y[N][k][i] = func::a1({i*h, k*h}, j*t);
 
-                y[i][k][0] = c0(i*h, k*h, j*t);
-                y[i][k][N] = c1(l, i*h, k*h, j*t);
+                y[i][k][0] = func::c0({i*h, k*h}, j*t);
+                y[i][k][N] = func::c1({i*h, k*h}, j*t);
             }
         }
 
         for (int i = 0 ; i <= N ; i++) {
             for (int k = 0 ; k <= N ; k++) {
                 if (myRank == 0) {
-                    y[i][0][k] = b0(i*h, k*h, j*t);
+                    y[i][0][k] = func::b0({i*h, k*h}, j*t);
                 } else if (myRank == size -1) {
-                    y[i][N][k] = b1(l, i*h, k*h, j*t);
+                    y[i][N][k] = func::b1({i*h, k*h}, j*t);
                 }
             }
         }
@@ -184,7 +187,7 @@ int main(int argc, char **argv) {
                 double * bi = new double[N+1];
 
                 ai[0] = 0;
-                bi[0] = a0(i2*h, i3*h, (j+(double)1/3)*t);
+                bi[0] = func::a0({i2*h, i3*h}, (j+(double)1/3)*t);
                 for (int i1 = 1; i1 < N ; ++i1)
                 {
                     ai[i1] = 1 / (2 + epsilon - ai[i1 - 1]);
@@ -193,7 +196,7 @@ int main(int argc, char **argv) {
                              (epsilon - 2) * y[i1][i2][i3]) /
                             (2 + epsilon - ai[i1 - 1]);
                 }
-                y[N][i2][i3] = a1(l, i2*h, i3*h, (j+(double)1/3)*t);
+                y[N][i2][i3] = func::a1({i2*h, i3*h}, (j+(double)1/3)*t);
                 for (int i1 = N - 1; i1 >= 0; --i1)
                 {
                     y[i1][i2][i3] =
@@ -253,7 +256,7 @@ int main(int argc, char **argv) {
                 double * bi = new double[N+1];
 
                 ai[0] = 0;
-                bi[0] = b0(i1*h, i3*h, (j+(double)2/3)*t);
+                bi[0] = func::b0({i1*h, i3*h}, (j+(double)2/3)*t);
                 for (int i2 = 1 ; i2 < N ; ++i2)
                 {
                     ai[i2] = 1 / (2 + epsilon - ai[i2 - 1]);
@@ -262,7 +265,7 @@ int main(int argc, char **argv) {
                              (epsilon - 2) * y[i1][i2][i3]) /
                             (2 + epsilon - ai[i2 - 1]);
                 }
-                y[i1][N][i3] = b1(l, i1*h, i3*h, (j+(double)2/3)*t);
+                y[i1][N][i3] = func::b1({i1*h, i3*h}, (j+(double)2/3)*t);
                 for (int i2 = N - 1; i2 >= 0; --i2)
                 {
                     y[i1][i2][i3] =
@@ -284,7 +287,7 @@ int main(int argc, char **argv) {
                 double * bi = new double[N+1];
 
                 ai[0] = 0;
-                bi[0] = c0(i1*h, i2*h, (j+(double)3/3)*t);
+                bi[0] = func::c0({i1*h, i2*h}, (j+(double)3/3)*t);
                 for (int i3 = 1; i3 < N ; ++i3)
                 {
                     ai[i3] = 1 / (2 + epsilon - ai[i3 - 1]);
@@ -293,7 +296,7 @@ int main(int argc, char **argv) {
                              (epsilon - 2) * y[i1][i2][i3]) /
                             (2 + epsilon - ai[i3 - 1]);
                 }
-                y[i1][i2][N] = b1(l, i1*h, i2*h, (j+(double)3/3)*t);
+                y[i1][i2][N] = func::b1({i1*h, i2*h}, (j+(double)3/3)*t);
                 for (int i3 = N - 1; i3 >= 0; --i3)
                 {
                     y[i1][i2][i3] =
@@ -314,8 +317,8 @@ int main(int argc, char **argv) {
             {
                 for (int i3 = 0; i3 <= N; ++i3)
                 {
-                    if (fabs(exp(3*(j+1)*t + i1*h + i2*h + i3*h) - y[i1][i2][i3]) > maxDifference) {
-                        maxDifference = fabs(exp(3*(j+1)*t + i1*h + i2*h + i3*h) - y[i1][i2][i3]);
+                    if (abs(func::u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]) > maxDifference) {
+                        maxDifference = abs(func::u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]);
                     }
                 }
             }
@@ -361,13 +364,13 @@ int main(int argc, char **argv) {
         }
     }
 
-    double end = MPI_Wtime();
-    double elapsed_secs = double(end - begin);
-    cout << "Time: " << elapsed_secs << endl;
+    auto finish = std::chrono::steady_clock::now();
+    auto time_in_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start);
+    std::cout << "Execution time (in milliseconds): " << static_cast<float>(time_in_milliseconds.count()) << '\n';
     if (myRank == 0) {
-        outputFile << N+1 << " " << elapsed_secs << endl;
+        outputFile << N+1 << " " << static_cast<float>(time_in_milliseconds.count()) << endl;
     }
-
+    outputFile.close();
     MPI_Finalize();
     return 0;
 }
