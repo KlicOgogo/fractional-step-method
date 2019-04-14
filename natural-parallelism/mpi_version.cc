@@ -181,13 +181,10 @@ int main(int argc, char* argv[]) {
 
         for (int i2 = r * myRank ; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i2++) {
             for (int i3 = 0 ; i3 <= N ; i3++) {
-                double * ai = new double[N+1];
-                double * bi = new double[N+1];
-
+                double ai[N+1], bi[N+1];
                 ai[0] = 0;
                 bi[0] = func::a0({i2*h, i3*h}, (j+(double)1/3)*t);
-                for (int i1 = 1; i1 < N ; ++i1)
-                {
+                for (int i1 = 1; i1 < N ; ++i1) {
                     ai[i1] = 1 / (2 + epsilon - ai[i1 - 1]);
                     bi[i1] =
                             ((y[i1 + 1][i2][i3] + y[i1 - 1][i2][i3] + bi[i1 - 1]) +
@@ -195,14 +192,9 @@ int main(int argc, char* argv[]) {
                             (2 + epsilon - ai[i1 - 1]);
                 }
                 y[N][i2][i3] = func::a1({i2*h, i3*h}, (j+(double)1/3)*t);
-                for (int i1 = N - 1; i1 >= 0; --i1)
-                {
-                    y[i1][i2][i3] =
-                            ai[i1] * y[i1 + 1][i2][i3] + bi[i1];
+                for (int i1 = N - 1; i1 >= 0; --i1) {
+                    y[i1][i2][i3] = ai[i1] * y[i1 + 1][i2][i3] + bi[i1];
                 }
-
-                delete[] ai;
-                delete[] bi;
             }
         }
 
@@ -250,9 +242,7 @@ int main(int argc, char* argv[]) {
 */
         for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
             for (int i3 = 0 ; i3 <= N ; i3++) {
-                double * ai = new double[N+1];
-                double * bi = new double[N+1];
-
+                double ai[N+1], bi[N+1];
                 ai[0] = 0;
                 bi[0] = func::b0({i1*h, i3*h}, (j+(double)2/3)*t);
                 for (int i2 = 1 ; i2 < N ; ++i2)
@@ -266,12 +256,8 @@ int main(int argc, char* argv[]) {
                 y[i1][N][i3] = func::b1({i1*h, i3*h}, (j+(double)2/3)*t);
                 for (int i2 = N - 1; i2 >= 0; --i2)
                 {
-                    y[i1][i2][i3] =
-                            ai[i2] * y[i1][i2+1][i3] + bi[i2];
+                    y[i1][i2][i3] = ai[i2] * y[i1][i2+1][i3] + bi[i2];
                 }
-
-                delete[] ai;
-                delete[] bi;
             }
         }
 /*
@@ -280,14 +266,10 @@ int main(int argc, char* argv[]) {
 
         for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
             for (int i2 = 0 ; i2 <= N ; i2++) {
-
-                double * ai = new double[N+1];
-                double * bi = new double[N+1];
-
+                double ai[N+1], bi[N+1];
                 ai[0] = 0;
                 bi[0] = func::c0({i1*h, i2*h}, (j+(double)3/3)*t);
-                for (int i3 = 1; i3 < N ; ++i3)
-                {
+                for (int i3 = 1; i3 < N ; ++i3) {
                     ai[i3] = 1 / (2 + epsilon - ai[i3 - 1]);
                     bi[i3] =
                             ((y[i1][i2][i3+1] + y[i1][i2][i3-1] + bi[i3 - 1]) +
@@ -295,34 +277,24 @@ int main(int argc, char* argv[]) {
                             (2 + epsilon - ai[i3 - 1]);
                 }
                 y[i1][i2][N] = func::b1({i1*h, i2*h}, (j+(double)3/3)*t);
-                for (int i3 = N - 1; i3 >= 0; --i3)
-                {
-                    y[i1][i2][i3] =
-                            ai[i3] * y[i1][i2][i3+1] + bi[i3];
+                for (int i3 = N - 1; i3 >= 0; --i3) {
+                    y[i1][i2][i3] = ai[i3] * y[i1][i2][i3+1] + bi[i3];
                 }
-
-                delete[] ai;
-                delete[] bi;
             }
         }
-/*
-      Проверка точности приближённого решения
-*/
-        double maxDifference = 0;
-        for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++)
-        {
-            for (int i2 = 0; i2 <= N; ++i2)
-            {
-                for (int i3 = 0; i3 <= N; ++i3)
-                {
-                    if (abs(func::u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]) > maxDifference) {
-                        maxDifference = abs(func::u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]);
+
+        double error = 0;
+        for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
+            for (int i2 = 0; i2 <= N; ++i2) {
+                for (int i3 = 0; i3 <= N; ++i3) {
+                    if (abs(func::u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]) > error) {
+                        error = abs(func::u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]);
                     }
                 }
             }
         }
 
-        std::cout << '\n' << myRank << ": " << maxDifference << '\n';
+        std::cout << '\n' << myRank << ": " << error << '\n';
         MPI_Barrier(MPI_COMM_WORLD);
 
         for (int i = 0 ; i < size ; i++) {
