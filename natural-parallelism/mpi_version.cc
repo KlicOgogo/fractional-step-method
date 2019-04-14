@@ -5,8 +5,6 @@
 
 #include "common/test_functions.h"
 
-using namespace std;
-
 /**
  * Allocate contiguous 3d array
  */
@@ -120,7 +118,7 @@ int calculate_receive_count(int N, int myRank, int processRank, int size, int r,
 }
 
 int main(int argc, char* argv[]) {
-    ofstream outputFile;
+    std::ofstream outputFile;
     outputFile.open("result.time", std::ios_base::app);
     int myRank, size;
 
@@ -324,7 +322,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        cout << endl << myRank << ": " << maxDifference << endl;
+        std::cout << '\n' << myRank << ": " << maxDifference << '\n';
         MPI_Barrier(MPI_COMM_WORLD);
 
         for (int i = 0 ; i < size ; i++) {
@@ -368,7 +366,7 @@ int main(int argc, char* argv[]) {
     auto time_in_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start);
     std::cout << "Execution time (in milliseconds): " << static_cast<float>(time_in_milliseconds.count()) << '\n';
     if (myRank == 0) {
-        outputFile << N+1 << " " << static_cast<float>(time_in_milliseconds.count()) << endl;
+        outputFile << N+1 << " " << static_cast<float>(time_in_milliseconds.count()) << '\n';
     }
     outputFile.close();
     MPI_Finalize();
