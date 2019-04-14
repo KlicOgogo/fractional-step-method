@@ -1,7 +1,5 @@
 #include <array>
 #include <cmath>
-#include <cstdlib>
-#include <ctime>
 #include <iostream>
 #include <vector>
 
@@ -14,13 +12,11 @@ using tensor3d = std::vector< std::vector <std::vector<double> > >;
 using tensor2d = std::vector< std::vector<double> >;
 using tensor1d = std::vector<double>;
 
-using namespace func;
-
 void start_initialization(tensor3d& y, double h, int N) {
     for (int i = 0 ; i <= N ; i++) {
         for (int j = 0; j <= N; j++) {
             for (int k = 0 ; k <= N ; k++) {
-                y[i][j][k] = u0({i*h, j*h, k*h});
+                y[i][j][k] = func::u0({i*h, j*h, k*h});
             }
         }
     }
@@ -49,12 +45,12 @@ int main(int argc, char * argv[]) {
     for (int j = 0; j < j0; j++) {
         for (int i = 0; i <= N ; i++) {
             for (int k = 0; k <= N ; k++) {
-                y[0][i][k] = a0({i*h, k*h}, (j)*t);
-                y[N][i][k] = a1({i*h, k*h}, (j)*t);
-                y[i][0][k] = b0({i*h, k*h}, (j)*t);
-                y[i][N][k] = b1({i*h, k*h}, (j)*t);
-                y[i][k][0] = c0({i*h, k*h}, (j)*t);
-                y[i][k][N] = c1({i*h, k*h}, (j)*t);
+                y[0][i][k] = func::a0({i*h, k*h}, (j)*t);
+                y[N][i][k] = func::a1({i*h, k*h}, (j)*t);
+                y[i][0][k] = func::b0({i*h, k*h}, (j)*t);
+                y[i][N][k] = func::b1({i*h, k*h}, (j)*t);
+                y[i][k][0] = func::c0({i*h, k*h}, (j)*t);
+                y[i][k][N] = func::c1({i*h, k*h}, (j)*t);
             }
         }
 
@@ -64,7 +60,7 @@ int main(int argc, char * argv[]) {
                 double bi[N+1];
 
                 ai[0] = 0;
-                bi[0] = a0({i2*h, i3*h}, (j+(double)1/3)*t);
+                bi[0] = func::a0({i2*h, i3*h}, (j+(double)1/3)*t);
                 for (int i1 = 1; i1 < N ; ++i1) {
                     ai[i1] = 1 / (2 + epsilon - ai[i1 - 1]);
                     bi[i1] =
@@ -72,7 +68,7 @@ int main(int argc, char * argv[]) {
                              (epsilon - 2) * y[i1][i2][i3]) /
                             (2 + epsilon - ai[i1 - 1]);
                 }
-                y[N][i2][i3] = a1({i2*h, i3*h}, (j+(double)1/3)*t);
+                y[N][i2][i3] = func::a1({i2*h, i3*h}, (j+(double)1/3)*t);
                 for (int i1 = N - 1; i1 >= 0; --i1) {
                     y[i1][i2][i3] = ai[i1] * y[i1 + 1][i2][i3] + bi[i1];
                 }
@@ -87,7 +83,7 @@ int main(int argc, char * argv[]) {
                 double bi[N+1];
 
                 ai[0] = 0;
-                bi[0] = b0({i1*h, i3*h}, (j+(double)2/3)*t);
+                bi[0] = func::b0({i1*h, i3*h}, (j+(double)2/3)*t);
                 for (int i2 = 1; i2 < N; ++i2) {
                     ai[i2] = 1 / (2 + epsilon - ai[i2 - 1]);
                     bi[i2] =
@@ -95,7 +91,7 @@ int main(int argc, char * argv[]) {
                              (epsilon - 2) * y[i1][i2][i3]) /
                             (2 + epsilon - ai[i2 - 1]);
                 }
-                y[i1][N][i3] = b1({i1*h, i3*h}, (j+(double)2/3)*t);
+                y[i1][N][i3] = func::b1({i1*h, i3*h}, (j+(double)2/3)*t);
                 for (int i2 = N - 1; i2 >= 0; --i2) {
                     y[i1][i2][i3] = ai[i2] * y[i1][i2+1][i3] + bi[i2];
                 }
@@ -110,7 +106,7 @@ int main(int argc, char * argv[]) {
                 double bi[N+1];
 
                 ai[0] = 0;
-                bi[0] = c0({i1*h, i2*h}, (j+(double)3/3)*t);
+                bi[0] = func::c0({i1*h, i2*h}, (j+(double)3/3)*t);
                 for (int i3 = 1; i3 < N; ++i3) {
                     ai[i3] = 1 / (2 + epsilon - ai[i3 - 1]);
                     bi[i3] =
@@ -118,7 +114,7 @@ int main(int argc, char * argv[]) {
                              (epsilon - 2) * y[i1][i2][i3]) /
                             (2 + epsilon - ai[i3 - 1]);
                 }
-                y[i1][i2][N] = b1({i1*h, i2*h}, (j+(double)3/3)*t);
+                y[i1][i2][N] = func::b1({i1*h, i2*h}, (j+(double)3/3)*t);
                 for (int i3 = N - 1; i3 >= 0; --i3) {
                     y[i1][i2][i3] = ai[i3] * y[i1][i2][i3+1] + bi[i3];
                 }
@@ -129,8 +125,8 @@ int main(int argc, char * argv[]) {
         for (int i1 = 0; i1 <= N; ++i1) {
             for (int i2 = 0; i2 <= N; ++i2) {
                 for (int i3 = 0; i3 <= N; ++i3) {
-                    if (std::abs(u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]) > error) {
-                        error = std::abs(u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]);
+                    if (std::abs(func::u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]) > error) {
+                        error = std::abs(func::u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]);
                     }
                 }
             }
