@@ -125,7 +125,7 @@ int main(int argc, char* argv[]) {
         N = std::atoi(argv[1]);
     }
 
-    double h = consts::l / N;
+    const double h = consts::l / N; // grid step
     int r = (N+1 + size - 1) / size;   // деление с округлением вверх
     int r_last_process = (N+1) - r * (size-1);
 
@@ -145,23 +145,30 @@ int main(int argc, char* argv[]) {
     MPI_Request send_requests[size-1];
     MPI_Status statuses[size-1];
 
+    double error = 0;
+    double x1_curr, x2_curr, x3_curr, t_curr;
     for (int j = 0 ; j < consts::j0; j++) {
+        t_curr = consts::t * j;
+        double row_curr, col_curr;
         for (int i = 0 ; i <= N ; i++) {
+            row_curr = i * h;
             for (int k = r * myRank ; k < (myRank == size -1 ? N+1 : (myRank+1) * r) ; k++) {
-                y[0][k][i] = func::a0({i*h, k*h}, j*consts::t);
-                y[N][k][i] = func::a1({i*h, k*h}, j*consts::t);
-
-                y[i][k][0] = func::c0({i*h, k*h}, j*consts::t);
-                y[i][k][N] = func::c1({i*h, k*h}, j*consts::t);
+                col_curr = k * h;
+                y[0][k][i] = func::a0({row_curr, col_curr}, t_curr);
+                y[N][k][i] = func::a1({row_curr, col_curr}, t_curr);
+                y[i][k][0] = func::c0({row_curr, col_curr}, t_curr);
+                y[i][k][N] = func::c1({row_curr, col_curr}, t_curr);
             }
         }
 
         for (int i = 0 ; i <= N ; i++) {
+            row_curr = i * h;
             for (int k = 0 ; k <= N ; k++) {
+                col_curr = k * h;
                 if (myRank == 0) {
-                    y[i][0][k] = func::b0({i*h, k*h}, j*consts::t);
+                    y[i][0][k] = func::b0({row_curr, col_curr}, t_curr);
                 } else if (myRank == size -1) {
-                    y[i][N][k] = func::b1({i*h, k*h}, j*consts::t);
+                    y[i][N][k] = func::b1({row_curr, col_curr}, t_curr);
                 }
             }
         }
@@ -268,7 +275,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        double error = 0;
+        error = 0;
         for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
             for (int i2 = 0; i2 <= N; ++i2) {
                 for (int i3 = 0; i3 <= N; ++i3) {
@@ -317,7 +324,7 @@ int main(int argc, char* argv[]) {
                 clear_memory_after_second_receive(buffer, myRank, i, size, r_last_process, r);
             }
         }
-    }
+    } // consts::j0
 
     auto finish = std::chrono::steady_clock::now();
     auto time_in_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start);
