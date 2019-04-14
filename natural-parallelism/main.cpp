@@ -15,7 +15,7 @@ using tensor1d = std::vector<double>;
 void start_initialization(tensor3d& y, double h, int N) {
     for (int i = 0 ; i <= N ; i++) {
         for (int j = 0; j <= N; j++) {
-            for (int k = 0 ; k <= N ; k++) {
+            for (int k = 0; k <= N; k++) {
                 y[i][j][k] = func::u0({i*h, j*h, k*h});
             }
         }
@@ -25,13 +25,13 @@ void start_initialization(tensor3d& y, double h, int N) {
 int main(int argc, char * argv[]) {
     auto start = std::chrono::steady_clock::now();
     int N = 100; // number of iterations (start conditions intializing not included)
-    if (argc == 2 ) {
+    if (argc == 2) {
         N = std::atoi(argv[1]);
     }
 
     tensor3d y(N+1, tensor2d(N+1, tensor1d(N+1)));
 
-    double T = 1;
+    double T = 1.0;
     int j0 = 100;
     double t = T / j0;
 
@@ -40,7 +40,7 @@ int main(int argc, char * argv[]) {
 
     start_initialization(y, h, N);
 
-    double epsilon = 2 * h * h / t;
+    double eps = 2 * h * h / t;
 
     for (int j = 0; j < j0; j++) {
         for (int i = 0; i <= N ; i++) {
@@ -60,17 +60,14 @@ int main(int argc, char * argv[]) {
                 double bi[N+1];
 
                 ai[0] = 0;
-                bi[0] = func::a0({i2*h, i3*h}, (j+(double)1/3)*t);
+                bi[0] = func::a0({i2*h, i3*h}, (j + 1.0 / 3) * t);
                 for (int i1 = 1; i1 < N ; ++i1) {
-                    ai[i1] = 1 / (2 + epsilon - ai[i1 - 1]);
-                    bi[i1] =
-                            ((y[i1 + 1][i2][i3] + y[i1 - 1][i2][i3] + bi[i1 - 1]) +
-                             (epsilon - 2) * y[i1][i2][i3]) /
-                            (2 + epsilon - ai[i1 - 1]);
+                    ai[i1] = 1.0 / (2.0 + eps - ai[i1-1]);
+                    bi[i1] = (y[i1+1][i2][i3] + y[i1-1][i2][i3] + bi[i1-1] + (eps - 2.0) * y[i1][i2][i3]) * ai[i1];
                 }
-                y[N][i2][i3] = func::a1({i2*h, i3*h}, (j+(double)1/3)*t);
+                y[N][i2][i3] = func::a1({i2*h, i3*h}, (j + 1.0 / 3) * t);
                 for (int i1 = N - 1; i1 >= 0; --i1) {
-                    y[i1][i2][i3] = ai[i1] * y[i1 + 1][i2][i3] + bi[i1];
+                    y[i1][i2][i3] = ai[i1] * y[i1+1][i2][i3] + bi[i1];
                 }
             }
         }
@@ -83,15 +80,12 @@ int main(int argc, char * argv[]) {
                 double bi[N+1];
 
                 ai[0] = 0;
-                bi[0] = func::b0({i1*h, i3*h}, (j+(double)2/3)*t);
+                bi[0] = func::b0({i1*h, i3*h}, (j + 2.0 / 3) * t);
                 for (int i2 = 1; i2 < N; ++i2) {
-                    ai[i2] = 1 / (2 + epsilon - ai[i2 - 1]);
-                    bi[i2] =
-                            ((y[i1][i2+1][i3] + y[i1][i2-1][i3] + bi[i2 - 1]) +
-                             (epsilon - 2) * y[i1][i2][i3]) /
-                            (2 + epsilon - ai[i2 - 1]);
+                    ai[i2] = 1.0 / (2.0 + eps - ai[i2-1]);
+                    bi[i2] = (y[i1][i2+1][i3] + y[i1][i2-1][i3] + bi[i2-1] + (eps - 2.0) * y[i1][i2][i3]) * ai[i2];
                 }
-                y[i1][N][i3] = func::b1({i1*h, i3*h}, (j+(double)2/3)*t);
+                y[i1][N][i3] = func::b1({i1*h, i3*h}, (j + 2.0 / 3) * t);
                 for (int i2 = N - 1; i2 >= 0; --i2) {
                     y[i1][i2][i3] = ai[i2] * y[i1][i2+1][i3] + bi[i2];
                 }
@@ -106,15 +100,12 @@ int main(int argc, char * argv[]) {
                 double bi[N+1];
 
                 ai[0] = 0;
-                bi[0] = func::c0({i1*h, i2*h}, (j+(double)3/3)*t);
+                bi[0] = func::c0({i1*h, i2*h}, (j + 3.0 / 3) * t);
                 for (int i3 = 1; i3 < N; ++i3) {
-                    ai[i3] = 1 / (2 + epsilon - ai[i3 - 1]);
-                    bi[i3] =
-                            ((y[i1][i2][i3+1] + y[i1][i2][i3-1] + bi[i3 - 1]) +
-                             (epsilon - 2) * y[i1][i2][i3]) /
-                            (2 + epsilon - ai[i3 - 1]);
+                    ai[i3] = 1.0 / (2.0 + eps - ai[i3 - 1]);
+                    bi[i3] = (y[i1][i2][i3+1] + y[i1][i2][i3-1] + bi[i3-1] + (eps - 2) * y[i1][i2][i3]) * ai[i3];
                 }
-                y[i1][i2][N] = func::b1({i1*h, i2*h}, (j+(double)3/3)*t);
+                y[i1][i2][N] = func::b1({i1*h, i2*h}, (j + 3.0 / 3) * t);
                 for (int i3 = N - 1; i3 >= 0; --i3) {
                     y[i1][i2][i3] = ai[i3] * y[i1][i2][i3+1] + bi[i3];
                 }
