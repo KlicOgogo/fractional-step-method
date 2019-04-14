@@ -2,8 +2,8 @@
 
 #include <array>
 
-using double3 = std::array<double, 3>;
 using double2 = std::array<double, 2>;
+using double3 = std::array<double, 3>;
 
 namespace func {
 
@@ -23,8 +23,8 @@ double b0(double2 x, double t);
 
 double b1(double2 x, double t);
 
-double c1(double2 x, double t);
+double c0(double2 x, double t);
 
-double c2(double2 x, double t);
+double c1(double2 x, double t);
 
 } // namespace func
