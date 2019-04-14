@@ -27,19 +27,20 @@ void start_initialization(tensor3d& y, double h, int N) {
 
 int main(int argc, char* argv[]) {
     auto start = std::chrono::steady_clock::now();
-    int N = 100;
+    int N = 100; // size of grid
     if (argc == 2) {
         N = std::atoi(argv[1]);
     }
 
     tensor3d y(N+1, tensor2d(N+1, tensor1d(N+1)));
 
-    double T = 1.0;
-    int j0 = 100; // number of iterations (start conditions intializing not included)
+    // better names are needed
+    constexpr double T = 1.0;
+    constexpr int j0 = 100; // number of iterations (start conditions intializing not included)
     double t = T / j0;
 
-    double l = 1;
-    double h = l / N;
+    constexpr double l = 1.0;
+    const double h = l / N; // grid step
 
     start_initialization(y, h, N);
 
