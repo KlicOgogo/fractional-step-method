@@ -1,16 +1,8 @@
-#include <array>
 #include <cmath>
 #include <iostream>
-#include <vector>
 
+#include "common/constants.h"
 #include "common/test_functions.h"
-
-using double2 = std::array<double, 2>;
-using double3 = std::array<double, 3>;
-
-using tensor3d = std::vector< std::vector <std::vector<double> > >;
-using tensor2d = std::vector< std::vector<double> >;
-using tensor1d = std::vector<double>;
 
 void start_initialization(tensor3d& y, double h, int N) {
     double x1_curr, x2_curr;
@@ -34,21 +26,15 @@ int main(int argc, char* argv[]) {
 
     tensor3d y(N+1, tensor2d(N+1, tensor1d(N+1)));
 
-    // better names are needed
-    constexpr double T = 1.0;
-    constexpr int j0 = 100; // number of iterations (start conditions intializing not included)
-    double t = T / j0;
-
-    constexpr double l = 1.0;
-    const double h = l / N; // grid step
+    const double h = consts::l / N; // grid step
 
     start_initialization(y, h, N);
 
-    double eps = 2 * h * h / t;
+    double eps = 2 * h * h / consts::t;
     double error = 0;
     double x1_curr, x2_curr, x3_curr, t_curr;
-    for (int j = 0; j < j0; ++j) {
-        t_curr = t * j;
+    for (int j = 0; j < consts::j0; ++j) {
+        t_curr = consts::t * j;
         double row_curr, col_curr;
         for (int i = 0; i <= N ; ++i) {
             row_curr = i * h;
@@ -63,7 +49,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        t_curr = (1.0 / 3 + j) * t;
+        t_curr = (1.0 / 3 + j) * consts::t;
         for (int i2 = 0; i2 <= N; ++i2) {
             x2_curr = i2 * h;
             for (int i3 = 0; i3 <= N; ++i3) {
@@ -84,7 +70,7 @@ int main(int argc, char* argv[]) {
 /*
         --------------------------------------------
 */
-        t_curr = (2.0 / 3 + j) * t;
+        t_curr = (2.0 / 3 + j) * consts::t;
         for (int i1 = 0; i1 <= N; ++i1) {
             x1_curr = i1 * h;
             for (int i3 = 0; i3 <= N; ++i3) {
@@ -105,7 +91,7 @@ int main(int argc, char* argv[]) {
 /*
         --------------------------------------------
 */
-        t_curr = (3.0 / 3 + j) * t;
+        t_curr = (3.0 / 3 + j) * consts::t;
         for (int i1 = 0; i1 <= N; ++i1) {
             x1_curr = i1 * h;
             for (int i2 = 0; i2 <= N; ++i2) {
@@ -124,7 +110,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        t_curr = (j + 1) * t;
+        t_curr = (j + 1) * consts::t;
         error = 0;
         for (int i1 = 0; i1 <= N; ++i1) {
             x1_curr = i1 * h;
@@ -139,7 +125,7 @@ int main(int argc, char* argv[]) {
             }
         }
         std::cout << error << '\n';
-    } // j0
+    } // consts::j0
 
     auto finish = std::chrono::steady_clock::now();
     auto time_in_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start);

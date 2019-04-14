@@ -3,6 +3,7 @@
 #include <fstream>
 #include "mpi.h"
 
+#include "common/constants.h"
 #include "common/test_functions.h"
 
 /**
@@ -127,18 +128,14 @@ int main(int argc, char* argv[]) {
     MPI_Comm_size (MPI_COMM_WORLD, &size);      /* get number of processes */
 
     auto start = std::chrono::steady_clock::now();
-    double T = 1;
-    int j0 = 100;
-    double t = T / j0;
 
 
-    int N = 100; // size of grid
+    int N = 100; // grid size
     if (argc == 2) {
         N = std::atoi(argv[1]);
     }
 
-    double l = 1.0;
-    double h = l / N;
+    double h = consts::l / N;
     int r = (N+1 + size - 1) / size;   // деление с округлением вверх
     int r_last_process = (N+1) - r * (size-1);
 
@@ -151,30 +148,30 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    double epsilon = 2 * h * h / t;
+    double eps = 2 * h * h / consts::t;
 
     MPI_Request recv_request = MPI_REQUEST_NULL;
     MPI_Status status;
     MPI_Request send_requests[size-1];
     MPI_Status statuses[size-1];
 
-    for (int j = 0 ; j < j0; j++) {
+    for (int j = 0 ; j < consts::j0; j++) {
         for (int i = 0 ; i <= N ; i++) {
             for (int k = r * myRank ; k < (myRank == size -1 ? N+1 : (myRank+1) * r) ; k++) {
-                y[0][k][i] = func::a0({i*h, k*h}, j*t);
-                y[N][k][i] = func::a1({i*h, k*h}, j*t);
+                y[0][k][i] = func::a0({i*h, k*h}, j*consts::t);
+                y[N][k][i] = func::a1({i*h, k*h}, j*consts::t);
 
-                y[i][k][0] = func::c0({i*h, k*h}, j*t);
-                y[i][k][N] = func::c1({i*h, k*h}, j*t);
+                y[i][k][0] = func::c0({i*h, k*h}, j*consts::t);
+                y[i][k][N] = func::c1({i*h, k*h}, j*consts::t);
             }
         }
 
         for (int i = 0 ; i <= N ; i++) {
             for (int k = 0 ; k <= N ; k++) {
                 if (myRank == 0) {
-                    y[i][0][k] = func::b0({i*h, k*h}, j*t);
+                    y[i][0][k] = func::b0({i*h, k*h}, j*consts::t);
                 } else if (myRank == size -1) {
-                    y[i][N][k] = func::b1({i*h, k*h}, j*t);
+                    y[i][N][k] = func::b1({i*h, k*h}, j*consts::t);
                 }
             }
         }
@@ -183,15 +180,15 @@ int main(int argc, char* argv[]) {
             for (int i3 = 0 ; i3 <= N ; i3++) {
                 double ai[N+1], bi[N+1];
                 ai[0] = 0;
-                bi[0] = func::a0({i2*h, i3*h}, (j+(double)1/3)*t);
+                bi[0] = func::a0({i2*h, i3*h}, (j+(double)1/3)*consts::t);
                 for (int i1 = 1; i1 < N ; ++i1) {
-                    ai[i1] = 1 / (2 + epsilon - ai[i1 - 1]);
+                    ai[i1] = 1 / (2 + eps - ai[i1 - 1]);
                     bi[i1] =
                             ((y[i1 + 1][i2][i3] + y[i1 - 1][i2][i3] + bi[i1 - 1]) +
-                             (epsilon - 2) * y[i1][i2][i3]) /
-                            (2 + epsilon - ai[i1 - 1]);
+                             (eps - 2) * y[i1][i2][i3]) /
+                            (2 + eps - ai[i1 - 1]);
                 }
-                y[N][i2][i3] = func::a1({i2*h, i3*h}, (j+(double)1/3)*t);
+                y[N][i2][i3] = func::a1({i2*h, i3*h}, (j+(double)1/3)*consts::t);
                 for (int i1 = N - 1; i1 >= 0; --i1) {
                     y[i1][i2][i3] = ai[i1] * y[i1 + 1][i2][i3] + bi[i1];
                 }
@@ -244,18 +241,16 @@ int main(int argc, char* argv[]) {
             for (int i3 = 0 ; i3 <= N ; i3++) {
                 double ai[N+1], bi[N+1];
                 ai[0] = 0;
-                bi[0] = func::b0({i1*h, i3*h}, (j+(double)2/3)*t);
-                for (int i2 = 1 ; i2 < N ; ++i2)
-                {
-                    ai[i2] = 1 / (2 + epsilon - ai[i2 - 1]);
+                bi[0] = func::b0({i1*h, i3*h}, (j+(double)2/3)*consts::t);
+                for (int i2 = 1 ; i2 < N ; ++i2) {
+                    ai[i2] = 1 / (2 + eps - ai[i2 - 1]);
                     bi[i2] =
                             ((y[i1][i2+1][i3] + y[i1][i2-1][i3] + bi[i2 - 1]) +
-                             (epsilon - 2) * y[i1][i2][i3]) /
-                            (2 + epsilon - ai[i2 - 1]);
+                             (eps - 2) * y[i1][i2][i3]) /
+                            (2 + eps - ai[i2 - 1]);
                 }
-                y[i1][N][i3] = func::b1({i1*h, i3*h}, (j+(double)2/3)*t);
-                for (int i2 = N - 1; i2 >= 0; --i2)
-                {
+                y[i1][N][i3] = func::b1({i1*h, i3*h}, (j+(double)2/3)*consts::t);
+                for (int i2 = N - 1; i2 >= 0; --i2) {
                     y[i1][i2][i3] = ai[i2] * y[i1][i2+1][i3] + bi[i2];
                 }
             }
@@ -268,15 +263,15 @@ int main(int argc, char* argv[]) {
             for (int i2 = 0 ; i2 <= N ; i2++) {
                 double ai[N+1], bi[N+1];
                 ai[0] = 0;
-                bi[0] = func::c0({i1*h, i2*h}, (j+(double)3/3)*t);
+                bi[0] = func::c0({i1*h, i2*h}, (j+(double)3/3)*consts::t);
                 for (int i3 = 1; i3 < N ; ++i3) {
-                    ai[i3] = 1 / (2 + epsilon - ai[i3 - 1]);
+                    ai[i3] = 1 / (2 + eps - ai[i3 - 1]);
                     bi[i3] =
                             ((y[i1][i2][i3+1] + y[i1][i2][i3-1] + bi[i3 - 1]) +
-                             (epsilon - 2) * y[i1][i2][i3]) /
-                            (2 + epsilon - ai[i3 - 1]);
+                             (eps - 2) * y[i1][i2][i3]) /
+                            (2 + eps - ai[i3 - 1]);
                 }
-                y[i1][i2][N] = func::b1({i1*h, i2*h}, (j+(double)3/3)*t);
+                y[i1][i2][N] = func::b1({i1*h, i2*h}, (j+(double)3/3)*consts::t);
                 for (int i3 = N - 1; i3 >= 0; --i3) {
                     y[i1][i2][i3] = ai[i3] * y[i1][i2][i3+1] + bi[i3];
                 }
@@ -287,8 +282,8 @@ int main(int argc, char* argv[]) {
         for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
             for (int i2 = 0; i2 <= N; ++i2) {
                 for (int i3 = 0; i3 <= N; ++i3) {
-                    if (abs(func::u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]) > error) {
-                        error = abs(func::u({i1*h, i2*h, i3*h}, (j+1)*t) - y[i1][i2][i3]);
+                    if (abs(func::u({i1*h, i2*h, i3*h}, (j+1)*consts::t) - y[i1][i2][i3]) > error) {
+                        error = abs(func::u({i1*h, i2*h, i3*h}, (j+1)*consts::t) - y[i1][i2][i3]);
                     }
                 }
             }
