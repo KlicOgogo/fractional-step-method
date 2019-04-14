@@ -5,7 +5,9 @@
 namespace func {
 
 // Current values are only for testing, for common use choose the way to assign l_i-s you like
-constexpr double L1 = L2 = L3 = 1.0;
+constexpr double L1 = 1.0;
+constexpr double L2 = 1.0;
+constexpr double L3 = 1.0;
 
 double u(double3 x, double t) {
     return std::exp(3 * t + x[0] + x[1] + x[2]);
