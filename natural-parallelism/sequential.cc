@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
                 double ai[N+1], bi[N+1];
                 ai[0] = 0;
                 bi[0] = func::a0({x2_curr, x3_curr}, t_curr);
-                for (int i1 = 1; i1 < N ; ++i1) {
+                for (int i1 = 1; i1 < N; ++i1) {
                     ai[i1] = 1.0 / (2.0 + eps - ai[i1-1]);
                     bi[i1] = (y[i1+1][i2][i3] + y[i1-1][i2][i3] + bi[i1-1] + (eps - 2.0) * y[i1][i2][i3]) * ai[i1];
                 }

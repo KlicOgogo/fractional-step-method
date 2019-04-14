@@ -12,9 +12,9 @@
 double ***alloc3d(int x, int y, int z) {
     double *data = new double [x*y*z];
     double ***array = new double **[x];
-    for (int i=0; i<x; i++) {
+    for (int i = 0; i < x; ++i) {
         array[i] = new double *[y];
-        for (int j=0; j<y; j++) {
+        for (int j = 0; j < y; ++j) {
             array[i][j] = &(data[(i*y+j)*z]);
         }
     }
@@ -39,22 +39,22 @@ void clear_memory_after_first_receive(double*** buffer, int myRank, int processR
     delete[] buffer[0][0];
     if (myRank == size-1 && processRank == size-1) {
         for (int i = 0; i < r_last_process; ++i) {
-            delete [] buffer[i];
+            delete[] buffer[i];
         }
     } else if (myRank == size-1) {
         for (int i = 0; i < r_last_process; ++i) {
-            delete [] buffer[i];
+            delete[] buffer[i];
         }
     } else if (processRank == size-1) {
         for (int i = 0; i < r; ++i) {
-            delete [] buffer[i];
+            delete[] buffer[i];
         }
     } else {
         for (int i = 0; i < r; ++i) {
-            delete [] buffer[i];
+            delete[] buffer[i];
         }
     }
-    delete [] buffer;
+    delete[] buffer;
 }
 
 double ***alloc_memory_for_second_receive(int myRank, int processRank, int size, int r_last_process, int r, int N) {
@@ -75,19 +75,19 @@ void clear_memory_after_second_receive(double*** buffer, int myRank, int process
     delete[] buffer[0][0];
     if (myRank == size-1 && processRank == size-1) {
         for (int i = 0; i < r_last_process; ++i) {
-            delete [] buffer[i];
+            delete[] buffer[i];
         }
     } else if (myRank == size-1) {
         for (int i = 0; i < r; ++i) {
-            delete [] buffer[i];
+            delete[] buffer[i];
         }
     } else if (processRank == size-1) {
         for (int i = 0; i < r_last_process; ++i) {
-            delete [] buffer[i];
+            delete[] buffer[i];
         }
     } else {
         for (int i = 0; i < r; ++i) {
-            delete [] buffer[i];
+            delete[] buffer[i];
         }
     }
     delete [] buffer;
@@ -126,13 +126,13 @@ int main(int argc, char* argv[]) {
     }
 
     const double h = consts::l / N; // grid step
-    int r = (N+1 + size - 1) / size;   // деление с округлением вверх
+    int r = (N+1 + size - 1) / size;
     int r_last_process = (N+1) - r * (size-1);
 
     double *** y = alloc3d(N+1, N+1, N+1);
-    for (int i = 0 ; i <= N ; i++) {
-        for (int j = r * myRank ; j < (myRank == size -1 ? N+1 : (myRank+1) * r); j++) {
-            for (int k = 0 ; k <= N ; k++) {
+    for (int i = 0; i <= N; i++) {
+        for (int j = r * myRank; j < (myRank == size -1 ? N+1 : (myRank+1) * r); j++) {
+            for (int k = 0; k <= N; k++) {
                 y[i][j][k] = func::u0({i*h, j*h, k*h});
             }
         }
@@ -147,12 +147,12 @@ int main(int argc, char* argv[]) {
 
     double error = 0;
     double x1_curr, x2_curr, x3_curr, t_curr;
-    for (int j = 0 ; j < consts::j0; j++) {
+    for (int j = 0; j < consts::j0; ++j) {
         t_curr = consts::t * j;
         double row_curr, col_curr;
-        for (int i = 0 ; i <= N ; i++) {
+        for (int i = 0; i <= N; ++i) {
             row_curr = i * h;
-            for (int k = r * myRank ; k < (myRank == size -1 ? N+1 : (myRank+1) * r) ; k++) {
+            for (int k = r * myRank; k < (myRank == size -1 ? N+1 : (myRank+1) * r); ++k) {
                 col_curr = k * h;
                 y[0][k][i] = func::a0({row_curr, col_curr}, t_curr);
                 y[N][k][i] = func::a1({row_curr, col_curr}, t_curr);
@@ -161,9 +161,9 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        for (int i = 0 ; i <= N ; i++) {
+        for (int i = 0; i <= N; ++i) {
             row_curr = i * h;
-            for (int k = 0 ; k <= N ; k++) {
+            for (int k = 0; k <= N; ++k) {
                 col_curr = k * h;
                 if (myRank == 0) {
                     y[i][0][k] = func::b0({row_curr, col_curr}, t_curr);
@@ -174,14 +174,14 @@ int main(int argc, char* argv[]) {
         }
 
         t_curr = (1.0 / 3 + j) * consts::t;
-        for (int i2 = r * myRank ; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i2++) {
+        for (int i2 = r * myRank; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r); ++i2) {
             x2_curr = i2 * h;
             for (int i3 = 0; i3 <= N; ++i3) {
                 x3_curr = i3 * h;
                 double ai[N+1], bi[N+1];
                 ai[0] = 0;
                 bi[0] = func::a0({x2_curr, x3_curr}, t_curr);
-                for (int i1 = 1; i1 < N ; ++i1) {
+                for (int i1 = 1; i1 < N; ++i1) {
                     ai[i1] = 1.0 / (2.0 + eps - ai[i1-1]);
                     bi[i1] = (y[i1+1][i2][i3] + y[i1-1][i2][i3] + bi[i1-1] + (eps - 2.0) * y[i1][i2][i3]) * ai[i1];
                 }
@@ -192,7 +192,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        for (int i = 0 ; i < size ; i++) {
+        for (int i = 0; i < size; ++i) {
             if (i != myRank) {  // i тот кому будем посылать
                 MPI_Datatype subarray_3d;
                 int starts[3] = {r*i, myRank*r, 0};
@@ -210,8 +210,7 @@ int main(int argc, char* argv[]) {
         }
 
 
-        for (int i = 0 ; i < size ; i++) {
-            double*** buffer;
+        for (int i = 0; i < size; ++i) {
             int index = i;
             if (i != myRank) {
                 int receive_count = calculate_receive_count(N, myRank, i, size, r, r_last_process);
@@ -220,9 +219,9 @@ int main(int argc, char* argv[]) {
                 MPI_Irecv(&(buffer[0][0][0]), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
 
-                for (int i1 = myRank*r ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
-                    for (int i2 = index*r ; i2 < (index == size -1 ? N+1 : (index+1) * r) ; i2++) {
-                        for (int i3 = 0 ; i3 <= N ; i3++) {
+                for (int i1 = myRank*r; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r); ++i1) {
+                    for (int i2 = index*r; i2 < (index == size -1 ? N+1 : (index+1) * r); ++i2) {
+                        for (int i3 = 0; i3 <= N; ++i3) {
                             y[i1][i2][i3] = buffer[i1-myRank*r][i2-index*r][i3];
                         }
                     }
@@ -235,7 +234,7 @@ int main(int argc, char* argv[]) {
         --------------------------------------------
 */
         t_curr = (2.0 / 3 + j) * consts::t;
-        for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
+        for (int i1 = r * myRank; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r); ++i1) {
             x1_curr = i1 * h;
             for (int i3 = 0; i3 <= N; ++i3) {
                 x3_curr = i3 * h;
@@ -257,7 +256,7 @@ int main(int argc, char* argv[]) {
 */
 
         t_curr = (1.0 + j) * consts::t;
-        for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
+        for (int i1 = r * myRank; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r); ++i1) {
             x1_curr = i1 * h;
             for (int i2 = 0; i2 <= N; ++i2) {
                 x2_curr = i2 * h;
@@ -277,7 +276,7 @@ int main(int argc, char* argv[]) {
 
         error = 0;
         t_curr = (j + 1) * consts::t;
-        for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
+        for (int i1 = r * myRank; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r); ++i1) {
             x1_curr = i1 * h;
             for (int i2 = 0; i2 <= N; ++i2) {
                 x2_curr = i2 * h;
@@ -293,7 +292,7 @@ int main(int argc, char* argv[]) {
         std::cout << myRank << ": " << error << '\n';
         MPI_Barrier(MPI_COMM_WORLD);
 
-        for (int i = 0 ; i < size ; i++) {
+        for (int i = 0; i < size; ++i) {
             if (i != myRank) {
                 MPI_Datatype subarray_3d;
                 int starts[3] = {myRank*r, r*i, 0};
@@ -309,18 +308,18 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        for (int i = 0 ; i < size ; i++) {
+        for (int i = 0; i < size; ++i) {
             int index = i;
             if (i != myRank) {
                 int receive_count = calculate_receive_count(N, myRank, i, size, r, r_last_process);
-                double*** buffer = alloc_memory_for_second_receive(myRank, i, size, r_last_process, r ,N);
+                double*** buffer = alloc_memory_for_second_receive(myRank, i, size, r_last_process, r, N);
 
                 MPI_Irecv(&(buffer[0][0][0]), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
 
-                for (int i1 = index*r ; i1 < (index == size -1 ? N+1 : (index+1) * r) ; i1++) {
-                    for (int i2 = myRank*r ; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i2++) {
-                        for (int i3 = 0 ; i3 <= N ; i3++) {
+                for (int i1 = index*r; i1 < (index == size -1 ? N+1 : (index+1) * r); ++i1) {
+                    for (int i2 = myRank*r; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r); ++i2) {
+                        for (int i3 = 0; i3 <= N; ++i3) {
                             y[i1][i2][i3] = buffer[i1-index*r][i2-myRank*r][i3];
                         }
                     }
