@@ -38,23 +38,19 @@ double ***alloc_memory_for_first_receive(int myRank, int processRank, int size, 
 void clear_memory_after_first_receive(double*** buffer, int myRank, int processRank, int size, int r_last_process, int r) {
     delete[] buffer[0][0];
     if (myRank == size-1 && processRank == size-1) {
-        for (int i = 0; i < r_last_process; ++i)
-        {
+        for (int i = 0; i < r_last_process; ++i) {
             delete [] buffer[i];
         }
     } else if (myRank == size-1) {
-        for (int i = 0; i < r_last_process; ++i)
-        {
+        for (int i = 0; i < r_last_process; ++i) {
             delete [] buffer[i];
         }
     } else if (processRank == size-1) {
-        for (int i = 0; i < r; ++i)
-        {
+        for (int i = 0; i < r; ++i) {
             delete [] buffer[i];
         }
     } else {
-        for (int i = 0; i < r; ++i)
-        {
+        for (int i = 0; i < r; ++i) {
             delete [] buffer[i];
         }
     }
@@ -78,23 +74,19 @@ double ***alloc_memory_for_second_receive(int myRank, int processRank, int size,
 void clear_memory_after_second_receive(double*** buffer, int myRank, int processRank, int size, int r_last_process, int r) {
     delete[] buffer[0][0];
     if (myRank == size-1 && processRank == size-1) {
-        for (int i = 0; i < r_last_process; ++i)
-        {
+        for (int i = 0; i < r_last_process; ++i) {
             delete [] buffer[i];
         }
     } else if (myRank == size-1) {
-        for (int i = 0; i < r; ++i)
-        {
+        for (int i = 0; i < r; ++i) {
             delete [] buffer[i];
         }
     } else if (processRank == size-1) {
-        for (int i = 0; i < r_last_process; ++i)
-        {
+        for (int i = 0; i < r_last_process; ++i) {
             delete [] buffer[i];
         }
     } else {
-        for (int i = 0; i < r; ++i)
-        {
+        for (int i = 0; i < r; ++i) {
             delete [] buffer[i];
         }
     }
@@ -122,13 +114,11 @@ int main(int argc, char* argv[]) {
     std::ofstream outputFile;
     outputFile.open("result.time", std::ios_base::app);
     int myRank, size;
-
-    MPI_Init (&argc, &argv);                    /* starts MPI */
-    MPI_Comm_rank (MPI_COMM_WORLD, &myRank);    /* get current process id */
-    MPI_Comm_size (MPI_COMM_WORLD, &size);      /* get number of processes */
+    MPI_Init(&argc, &argv);                    /* starts MPI */
+    MPI_Comm_rank(MPI_COMM_WORLD, &myRank);    /* get current process id */
+    MPI_Comm_size(MPI_COMM_WORLD, &size);      /* get number of processes */
 
     auto start = std::chrono::steady_clock::now();
-
 
     int N = 100; // grid size
     if (argc == 2) {

@@ -19,15 +19,13 @@ void start_initialization(tensor3d& y, double h, int N) {
 
 int main(int argc, char* argv[]) {
     auto start = std::chrono::steady_clock::now();
-    int N = 100; // size of grid
+    int N = 100; // grid size
     if (argc == 2) {
         N = std::atoi(argv[1]);
     }
 
     tensor3d y(N+1, tensor2d(N+1, tensor1d(N+1)));
-
     const double h = consts::l / N; // grid step
-
     start_initialization(y, h, N);
 
     double eps = 2 * h * h / consts::t;
