@@ -173,21 +173,21 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        t_curr = (1.0 / 3 + j) * consts::t;
         for (int i2 = r * myRank ; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i2++) {
-            for (int i3 = 0 ; i3 <= N ; i3++) {
+            x2_curr = i2 * h;
+            for (int i3 = 0; i3 <= N; ++i3) {
+                x3_curr = i3 * h;
                 double ai[N+1], bi[N+1];
                 ai[0] = 0;
-                bi[0] = func::a0({i2*h, i3*h}, (j+(double)1/3)*consts::t);
+                bi[0] = func::a0({x2_curr, x3_curr}, t_curr);
                 for (int i1 = 1; i1 < N ; ++i1) {
-                    ai[i1] = 1 / (2 + eps - ai[i1 - 1]);
-                    bi[i1] =
-                            ((y[i1 + 1][i2][i3] + y[i1 - 1][i2][i3] + bi[i1 - 1]) +
-                             (eps - 2) * y[i1][i2][i3]) /
-                            (2 + eps - ai[i1 - 1]);
+                    ai[i1] = 1.0 / (2.0 + eps - ai[i1-1]);
+                    bi[i1] = (y[i1+1][i2][i3] + y[i1-1][i2][i3] + bi[i1-1] + (eps - 2.0) * y[i1][i2][i3]) * ai[i1];
                 }
-                y[N][i2][i3] = func::a1({i2*h, i3*h}, (j+(double)1/3)*consts::t);
+                y[N][i2][i3] = func::a1({x2_curr, x3_curr}, t_curr);
                 for (int i1 = N - 1; i1 >= 0; --i1) {
-                    y[i1][i2][i3] = ai[i1] * y[i1 + 1][i2][i3] + bi[i1];
+                    y[i1][i2][i3] = ai[i1] * y[i1+1][i2][i3] + bi[i1];
                 }
             }
         }
@@ -234,19 +234,19 @@ int main(int argc, char* argv[]) {
 /*
         --------------------------------------------
 */
+        t_curr = (2.0 / 3 + j) * consts::t;
         for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
-            for (int i3 = 0 ; i3 <= N ; i3++) {
+            x1_curr = i1 * h;
+            for (int i3 = 0; i3 <= N; ++i3) {
+                x3_curr = i3 * h;
                 double ai[N+1], bi[N+1];
                 ai[0] = 0;
-                bi[0] = func::b0({i1*h, i3*h}, (j+(double)2/3)*consts::t);
-                for (int i2 = 1 ; i2 < N ; ++i2) {
-                    ai[i2] = 1 / (2 + eps - ai[i2 - 1]);
-                    bi[i2] =
-                            ((y[i1][i2+1][i3] + y[i1][i2-1][i3] + bi[i2 - 1]) +
-                             (eps - 2) * y[i1][i2][i3]) /
-                            (2 + eps - ai[i2 - 1]);
+                bi[0] = func::b0({x1_curr, x3_curr}, t_curr);
+                for (int i2 = 1; i2 < N; ++i2) {
+                    ai[i2] = 1.0 / (2.0 + eps - ai[i2-1]);
+                    bi[i2] = (y[i1][i2+1][i3] + y[i1][i2-1][i3] + bi[i2-1] + (eps - 2.0) * y[i1][i2][i3]) * ai[i2];
                 }
-                y[i1][N][i3] = func::b1({i1*h, i3*h}, (j+(double)2/3)*consts::t);
+                y[i1][N][i3] = func::b1({x1_curr, x3_curr}, t_curr);
                 for (int i2 = N - 1; i2 >= 0; --i2) {
                     y[i1][i2][i3] = ai[i2] * y[i1][i2+1][i3] + bi[i2];
                 }
@@ -256,19 +256,19 @@ int main(int argc, char* argv[]) {
         --------------------------------------------
 */
 
+        t_curr = (1.0 + j) * consts::t;
         for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
-            for (int i2 = 0 ; i2 <= N ; i2++) {
+            x1_curr = i1 * h;
+            for (int i2 = 0; i2 <= N; ++i2) {
+                x2_curr = i2 * h;
                 double ai[N+1], bi[N+1];
                 ai[0] = 0;
-                bi[0] = func::c0({i1*h, i2*h}, (j+(double)3/3)*consts::t);
-                for (int i3 = 1; i3 < N ; ++i3) {
-                    ai[i3] = 1 / (2 + eps - ai[i3 - 1]);
-                    bi[i3] =
-                            ((y[i1][i2][i3+1] + y[i1][i2][i3-1] + bi[i3 - 1]) +
-                             (eps - 2) * y[i1][i2][i3]) /
-                            (2 + eps - ai[i3 - 1]);
+                bi[0] = func::c0({x1_curr, x2_curr}, t_curr);
+                for (int i3 = 1; i3 < N; ++i3) {
+                    ai[i3] = 1.0 / (2.0 + eps - ai[i3 - 1]);
+                    bi[i3] = (y[i1][i2][i3+1] + y[i1][i2][i3-1] + bi[i3-1] + (eps - 2) * y[i1][i2][i3]) * ai[i3];
                 }
-                y[i1][i2][N] = func::b1({i1*h, i2*h}, (j+(double)3/3)*consts::t);
+                y[i1][i2][N] = func::b1({x1_curr, x2_curr}, t_curr);
                 for (int i3 = N - 1; i3 >= 0; --i3) {
                     y[i1][i2][i3] = ai[i3] * y[i1][i2][i3+1] + bi[i3];
                 }
@@ -276,17 +276,21 @@ int main(int argc, char* argv[]) {
         }
 
         error = 0;
+        t_curr = (j + 1) * consts::t;
         for (int i1 = r * myRank ; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r) ; i1++) {
+            x1_curr = i1 * h;
             for (int i2 = 0; i2 <= N; ++i2) {
+                x2_curr = i2 * h;
                 for (int i3 = 0; i3 <= N; ++i3) {
-                    if (abs(func::u({i1*h, i2*h, i3*h}, (j+1)*consts::t) - y[i1][i2][i3]) > error) {
-                        error = abs(func::u({i1*h, i2*h, i3*h}, (j+1)*consts::t) - y[i1][i2][i3]);
+                    x3_curr = i3 * h;
+                    if (std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y[i1][i2][i3]) > error) {
+                        error = std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y[i1][i2][i3]);
                     }
                 }
             }
         }
 
-        std::cout << '\n' << myRank << ": " << error << '\n';
+        std::cout << myRank << ": " << error << '\n';
         MPI_Barrier(MPI_COMM_WORLD);
 
         for (int i = 0 ; i < size ; i++) {

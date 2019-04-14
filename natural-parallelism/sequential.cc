@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
 /*
         --------------------------------------------
 */
-        t_curr = (3.0 / 3 + j) * consts::t;
+        t_curr = (1.0 + j) * consts::t;
         for (int i1 = 0; i1 <= N; ++i1) {
             x1_curr = i1 * h;
             for (int i2 = 0; i2 <= N; ++i2) {
