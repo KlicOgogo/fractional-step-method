@@ -42,25 +42,13 @@ double c1[N][N][T];
 int i, i1, i2, i3, j;
 
 void setBorderConditions() {
-	for (i2 = 0; i2 < N; ++i2) {
-		for (i3 = 0; i3 < N; ++i3) {
-			for (j = 0; j < T; ++j) {
-				a0[i2][i3][j] = func::a0({i2 * H, i3 * H}, (j + 1.0 / 3.0) * TAU);
-				a1[i2][i3][j] = func::a1({i2 * H, i3 * H}, (j + 1.0 / 3.0) * TAU);
-			}
-		}
-	}
-	for (i1 = 0; i1 < N; ++i1) {
-		for (i3 = 0; i3 < N; ++i3) {
-			for (j = 0; j < T; ++j) {
-				b0[i1][i3][j] = func::b0({i1 * H, i2 * H}, (j + 2.0 / 3.0) * TAU);
-				b1[i1][i3][j] = func::b1({i1 * H, i3 * H}, (j + 2.0 / 3.0) * TAU);
-			}
-		}
-	}
 	for (i1 = 0; i1 < N; ++i1) {
 		for (i2 = 0; i2 < N; ++i2) {
 			for (j = 0; j < T; ++j) {
+				a0[i1][i2][j] = func::a0({i1 * H, i2 * H}, (j + 1.0 / 3.0) * TAU);
+				a1[i1][i2][j] = func::a1({i1 * H, i2 * H}, (j + 1.0 / 3.0) * TAU);
+				b0[i1][i2][j] = func::b0({i1 * H, i2 * H}, (j + 2.0 / 3.0) * TAU);
+				b1[i1][i2][j] = func::b1({i1 * H, i2 * H}, (j + 2.0 / 3.0) * TAU);
 				c0[i1][i2][j] = func::c0({i1 * H, i2 * H}, (j + 1.0) * TAU);
 				c1[i1][i2][j] = func::c1({i1 * H, i2 * H}, (j + 1.0) * TAU);
 			}
@@ -101,7 +89,7 @@ int main(int argc, char* argv[]) {
 	setInitialApproximation();
 
 	double eps = 2 * H * H / TAU;
-	
+
 	double *alpha = new double[sizeof(*alpha) * N];
 	double *beta = new double[sizeof(*beta) * N];
 
