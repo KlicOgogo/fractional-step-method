@@ -1,6 +1,6 @@
 /* TODO: change MPI_Send and MPI_Recv to non blocking calls; reduce memory usage
  *
- * ACHTUNG: assume N1 % pcnt =  0
+ * ACHTUNG: assume N % pcnt =  0
  */
 
 #include <cmath>
@@ -12,31 +12,28 @@
 #include "common/structures.h"
 #include "common/test_functions.h"
 
-#define N1 144
-#define N2 100
-#define N3 100
+constexpr int N = 100;
+constexpr double H = 0.01;
+
 #define T 100
 #define Q2 30
 #define Q3 30
-#define H1 0.01
-#define H2 0.01
-#define H3 0.01
 #define TAU 0.01
 
 #define MIN(x, y) (((x) > (y)) ? (y) : (x))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
 
-double y[T][N1][N2][N3] = {{{{0.}}}};
+double y[T][N][N][N] = {{{{0.}}}};
 
-double a0[N2][N3][T];
-double a1[N2][N3][T];
+double a0[N][N][T];
+double a1[N][N][T];
 
-double b0[N1][N3][T];
-double b1[N1][N3][T];
+double b0[N][N][T];
+double b1[N][N][T];
 
-double c0[N1][N2][T];
-double c1[N1][N2][T];
+double c0[N][N][T];
+double c1[N][N][T];
 
 #define LAMBDA1 0.6
 #define LAMBDA2 0.8
@@ -44,52 +41,46 @@ double c1[N1][N2][T];
 
 int i, i1, i2, i3, j;
 
-// u = t * e^(LAMBDA1*x1 + LAMBDA2*x2 + LAMBDA3*x3)
-
-double calcExactSolution(double t, double x1, double x2, double x3) {
-	return t * exp(LAMBDA1 * x1 + LAMBDA2 * x2 + LAMBDA3 * x3);
-}
-
 void setBorderConditions() {
-	for (i2 = 0; i2 < N2; ++i2) {
-		for (i3 = 0; i3 < N3; ++i3) {
+	for (i2 = 0; i2 < N; ++i2) {
+		for (i3 = 0; i3 < N; ++i3) {
 			for (j = 0; j < T; ++j) {
-				a0[i2][i3][j] = exp(LAMBDA2 * i2 * H2 + LAMBDA3 * i3 * H3) * (j + (1. / 3.)) * TAU;
-				a1[i2][i3][j] = exp(LAMBDA1 * (N1 - 1) * H1 + LAMBDA2 * i2 * H2 + LAMBDA3 * i3 * H3) * (j + (1. / 3.)) * TAU;
+				a0[i2][i3][j] = func::a0({i2 * H, i3 * H}, (j + 1.0 / 3.0) * TAU);
+				a1[i2][i3][j] = func::a1({i2 * H, i3 * H}, (j + 1.0 / 3.0) * TAU);
 			}
 		}
 	}
-	for (i1 = 0; i1 < N1; ++i1) {
-		for (i3 = 0; i3 < N3; ++i3) {
+	for (i1 = 0; i1 < N; ++i1) {
+		for (i3 = 0; i3 < N; ++i3) {
 			for (j = 0; j < T; ++j) {
-				b0[i1][i3][j] = exp(LAMBDA1 * i1 * H1 + LAMBDA3 * i3 * H3) * (j + (2. / 3.)) * TAU;
-				b1[i1][i3][j] = exp(LAMBDA1 * i1 * H1 + LAMBDA2 * (N2 - 1) * H2 + LAMBDA3 * i3 * H3) * (j + (2. / 3.)) * TAU;
+				b0[i1][i3][j] = func::b0({i1 * H, i2 * H}, (j + 2.0 / 3.0) * TAU);
+				b1[i1][i3][j] = func::b1({i1 * H, i3 * H}, (j + 2.0 / 3.0) * TAU);
 			}
 		}
 	}
-	for (i1 = 0; i1 < N1; ++i1) {
-		for (i2 = 0; i2 < N2; ++i2) {
+	for (i1 = 0; i1 < N; ++i1) {
+		for (i2 = 0; i2 < N; ++i2) {
 			for (j = 0; j < T; ++j) {
-				c0[i1][i2][j] = exp(LAMBDA1 * i1 * H1 + LAMBDA2 * i2 * H2) * (j + 1) * TAU;
-				c1[i1][i2][j] = exp(LAMBDA1 * i1 * H1 + LAMBDA2 * i2 * H2 + LAMBDA3 * (N3 - 1) * H3) * (j + 1) * TAU;
+				c0[i1][i2][j] = func::c0({i1 * H, i2 * H}, (j + 1.0) * TAU);
+				c1[i1][i2][j] = func::c1({i1 * H, i2 * H}, (j + 1.0) * TAU);
 			}
 		}
 	}
 }
 
 void setInitialApproximation() {
-	for (i1 = 0; i1 < N1; ++i1) {
-		for (i2 = 0; i2 < N2; ++i2) {
-			for (i3 = 0; i3 < N3; ++i3) {
-				y[0][i1][i2][i3] = 0.0;
+	for (i1 = 0; i1 < N; ++i1) {
+		for (i2 = 0; i2 < N; ++i2) {
+			for (i3 = 0; i3 < N; ++i3) {
+				y[0][i1][i2][i3] = func::u0({i1 * H, i2 * H, i3 * H});
 			}
 		}
 	}
 }
 
-double tempY[2][N1][N2][N3];
-double alphaArr[N1][N2][N3];
-double betaArr[N1][N2][N3];
+double tempY[2][N][N][N];
+double alphaArr[N][N][N];
+double betaArr[N][N][N];
 
 int main(int argc, char* argv[]) {
 	std::ofstream output_file;
@@ -102,24 +93,17 @@ int main(int argc, char* argv[]) {
 
 	auto start = std::chrono::steady_clock::now();
 
-	const int r1 = N1 / pcnt; // should be N1 % pcnt = 0
-	const int r2 = (N2 + Q2 - 1) / Q2;
-	const int r3 = (N3 + Q3 - 1) / Q3;
+	const int r1 = N / pcnt; // should be N % pcnt = 0
+	const int r2 = (N + Q2 - 1) / Q2;
+	const int r3 = (N + Q3 - 1) / Q3;
 
 	setBorderConditions();
 	setInitialApproximation();
 
-	double epsilon1 = 2 * H1 * H1 / TAU;
-	double epsilon2 = 2 * H2 * H2 / TAU;
-	double epsilon3 = 2 * H3 * H3 / TAU;
-
-	size_t maxSize = (N1 > N2) ? N1 : N2;
-	if (maxSize < N3) {
-		maxSize = N3;
-	}
-
-	double *alpha = new double[sizeof(*alpha) * maxSize];
-	double *beta = new double[sizeof(*beta) * maxSize];
+	double eps = 2 * H * H / TAU;
+	
+	double *alpha = new double[sizeof(*alpha) * N];
+	double *beta = new double[sizeof(*beta) * N];
 
 	const size_t splitSize = r2 * r3;
 	double *alphaLast = new double[sizeof(*alphaLast) * splitSize];
@@ -135,8 +119,8 @@ int main(int argc, char* argv[]) {
 					MPI_Recv(betaLast, splitSize, MPI_DOUBLE, my_rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				}
 
-				for (int i2 = r2 * q2; i2 < MIN(r2 * (q2 + 1), N2); ++i2) {
-					for (int i3 = r3 * q3; i3 < MIN(r3 * (q3 + 1), N3); ++i3) {
+				for (int i2 = r2 * q2; i2 < MIN(r2 * (q2 + 1), N); ++i2) {
+					for (int i3 = r3 * q3; i3 < MIN(r3 * (q3 + 1), N); ++i3) {
 						int lastIdx = (i2 - r2 * q2) * r2 + i3 - r3 * q3;
 						if (my_rank == 0) {
 							alphaLast[lastIdx] = 0.;
@@ -144,15 +128,15 @@ int main(int argc, char* argv[]) {
 						}
 
 						const int startIdx = my_rank * r1 + 1;
-						const int stopIdx = MIN((my_rank + 1) * r1 + 1, N1 - 1);
+						const int stopIdx = MIN((my_rank + 1) * r1 + 1, N - 1);
 						alphaArr[startIdx - 1][i2][i3] = alphaLast[lastIdx];
 						betaArr[startIdx - 1][i2][i3] = betaLast[lastIdx];
 						for (i = startIdx; i < stopIdx; ++i) {
-							alphaArr[i][i2][i3] = 1 / (2 + epsilon1 - alphaArr[i - 1][i2][i3]);
+							alphaArr[i][i2][i3] = 1 / (2 + eps - alphaArr[i - 1][i2][i3]);
 							betaArr[i][i2][i3] =
 								((y[j][i + 1][i2][i3] + y[j][i - 1][i2][i3] + betaArr[i - 1][i2][i3]) +
-								(epsilon1 - 2) * y[j][i][i2][i3]) /
-									(2 + epsilon1 - alphaArr[i - 1][i2][i3]);
+								(eps - 2) * y[j][i][i2][i3]) /
+									(2 + eps - alphaArr[i - 1][i2][i3]);
 						}
 						alphaLast[lastIdx] = alphaArr[stopIdx - 1][i2][i3];
 						betaLast[lastIdx] = betaArr[stopIdx - 1][i2][i3];
@@ -171,13 +155,13 @@ int main(int argc, char* argv[]) {
 					// TODO: change to non blocking calls
 					MPI_Recv(yLast, splitSize, MPI_DOUBLE, my_rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				}
-				for (i2 = r2 * q2; i2 < MIN(r2 * (q2 + 1), N2); ++i2) {
-					for (i3 = r3 * q3; i3 < MIN(r3 * (q3 + 1), N3); ++i3) {
+				for (i2 = r2 * q2; i2 < MIN(r2 * (q2 + 1), N); ++i2) {
+					for (i3 = r3 * q3; i3 < MIN(r3 * (q3 + 1), N); ++i3) {
 						int lastIdx = (i2 - r2 * q2) * r2 + i3 - r3 * q3;
 						int startIdx = (my_rank + 1) * r1 - 1;
 						if (my_rank == pcnt - 1) {
 							yLast[lastIdx] = a1[i2][i3][j];
-							startIdx = N1 - 2;
+							startIdx = N - 2;
 						}
 						const int stopIdx = my_rank * r1;
 						tempY[0][startIdx + 1][i2][i3] = yLast[lastIdx];
@@ -196,57 +180,56 @@ int main(int argc, char* argv[]) {
 		}
 
 		for (i1 = r1 * my_rank; i1 < r1 * (my_rank + 1); ++i1) {
-			for (i3 = 0; i3 < N3; ++i3) {
+			for (i3 = 0; i3 < N; ++i3) {
 				alpha[0] = 0;
 				beta[0] = b0[i1][i3][j];
-				for (i = 1; i < N2 - 1; ++i) {
-					alpha[i] = 1 / (2 + epsilon2 - alpha[i - 1]);
+				for (i = 1; i < N - 1; ++i) {
+					alpha[i] = 1 / (2 + eps - alpha[i - 1]);
 					beta[i] =
 						((tempY[0][i1][i + 1][i3] + tempY[0][i1][i - 1][i3] + beta[i - 1]) +
-						(epsilon2 - 2) * tempY[0][i1][i][i3]) /
-							(2 + epsilon2 - alpha[i - 1]);
+						(eps - 2) * tempY[0][i1][i][i3]) /
+							(2 + eps - alpha[i - 1]);
 				}
-				tempY[1][i1][N2 - 1][i3] = b1[i1][i3][j];
-				for (i = N2 - 2; i >= 0; --i) {
+				tempY[1][i1][N - 1][i3] = b1[i1][i3][j];
+				for (i = N - 2; i >= 0; --i) {
 					tempY[1][i1][i][i3] = alpha[i] * tempY[1][i1][i + 1][i3] + beta[i];
 				}
 			}
 		}
 
 		for (i1 = r1 * my_rank; i1 < r1 * (my_rank + 1); ++i1) {
-			for (i2 = 0; i2 < N2; ++i2) {
+			for (i2 = 0; i2 < N; ++i2) {
 				alpha[0] = 0;
 				beta[0] = c0[i1][i2][j];
-				for (i = 1; i < N3 - 1; ++i) {
-					alpha[i] = 1 / (2 + epsilon3 - alpha[i - 1]);
+				for (i = 1; i < N - 1; ++i) {
+					alpha[i] = 1 / (2 + eps - alpha[i - 1]);
 					beta[i] =
 						((tempY[1][i1][i2][i + 1] + tempY[1][i1][i2][i - 1] + beta[i - 1]) +
-						(epsilon3 - 2) * tempY[1][i1][i2][i]) /
-							(2 + epsilon3 - alpha[i - 1]);
+						(eps - 2) * tempY[1][i1][i2][i]) /
+							(2 + eps - alpha[i - 1]);
 				}
-				y[j + 1][i1][i2][N3 - 1] = c1[i1][i2][j];
-				for (i = N3 - 2; i >= 0; --i) {
-					y[j + 1][i1][i2][i] =
-						alpha[i] * y[j + 1][i1][i2][i + 1] + beta[i];
+				y[j + 1][i1][i2][N - 1] = c1[i1][i2][j];
+				for (i = N - 2; i >= 0; --i) {
+					y[j + 1][i1][i2][i] = alpha[i] * y[j + 1][i1][i2][i + 1] + beta[i];
 				}
 			}
 		}
 
 		// TODO: change to non blocking calls
 		if (my_rank != pcnt - 1) {
-			MPI_Recv(y[j + 1][(my_rank + 1) * r1 + 1], N2 * N3, MPI_DOUBLE, my_rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			MPI_Recv(y[j + 1][(my_rank + 1) * r1], N2 * N3, MPI_DOUBLE, my_rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			MPI_Recv(y[j + 1][(my_rank + 1) * r1 + 1], N * N, MPI_DOUBLE, my_rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			MPI_Recv(y[j + 1][(my_rank + 1) * r1], N * N, MPI_DOUBLE, my_rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
 		if (my_rank) {
-			MPI_Send(y[j + 1][my_rank * r1 + 1], N2 * N3, MPI_DOUBLE, my_rank - 1, 0, MPI_COMM_WORLD);
-			MPI_Send(y[j + 1][my_rank * r1], N2 * N3, MPI_DOUBLE, my_rank - 1, 0, MPI_COMM_WORLD);
+			MPI_Send(y[j + 1][my_rank * r1 + 1], N * N, MPI_DOUBLE, my_rank - 1, 0, MPI_COMM_WORLD);
+			MPI_Send(y[j + 1][my_rank * r1], N * N, MPI_DOUBLE, my_rank - 1, 0, MPI_COMM_WORLD);
 		}
 
 		double error = 0.;
 		for (i1 = my_rank * r1; i1 < (my_rank + 1) * r1; ++i1) {
-			for (i2 = 0; i2 < N2; ++i2) {
-				for (i3 = 0; i3 < N3; ++i3) {
-					double diff = std::abs(calcExactSolution(TAU * j, H1 * i1, H2 * i2, H3 * i3) - y[j][i1][i2][i3]);
+			for (i2 = 0; i2 < N; ++i2) {
+				for (i3 = 0; i3 < N; ++i3) {
+					double diff = std::abs(func::u({H * i1, H * i2, H * i3}, TAU * j) - y[j][i1][i2][i3]);
 					if (diff > error) {
 						error = diff;
 					}
@@ -260,7 +243,7 @@ int main(int argc, char* argv[]) {
     auto time_in_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start);
     std::cout << "Execution time (in milliseconds): " << static_cast<float>(time_in_milliseconds.count()) << '\n';
     if (my_rank == 0) {
-        output_file << N1+1 << " " << static_cast<float>(time_in_milliseconds.count()) << '\n';
+        output_file << N+1 << " " << static_cast<float>(time_in_milliseconds.count()) << '\n';
     }
     output_file.close();
 

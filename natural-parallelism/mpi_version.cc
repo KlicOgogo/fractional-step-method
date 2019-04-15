@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
         N = std::atoi(argv[1]);
     }
     const double h = consts::l / N; // grid step
-    int r = (N + 1 + size - 1) / size;
+    int r = (N + size) / size;
     int r_last = (N + 1) - r * (size - 1);
 
     buffer3D y = buffer3D({N+1, N+1, N+1});
