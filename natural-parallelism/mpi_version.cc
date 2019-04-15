@@ -9,20 +9,12 @@
 /**
  * Allocate contiguous 3d array
  */
-double ***alloc3d(int x, int y, int z) {
-    double *data = new double [x*y*z];
-    double ***array = new double **[x];
-    for (int i = 0; i < x; ++i) {
-        array[i] = new double *[y];
-        for (int j = 0; j < y; ++j) {
-            array[i][j] = &(data[(i*y+j)*z]);
-        }
-    }
-    return array;
+buffer3D alloc3d(int x, int y, int z) {
+    return buffer3D({x, y, z});
 }
 
-double ***alloc_memory_for_first_receive(int myRank, int processRank, int size, int r_last_process, int r, int N) {
-    double*** buffer;
+buffer3D alloc_memory_for_first_receive(int myRank, int processRank, int size, int r_last_process, int r, int N) {
+    buffer3D buffer;
     if (myRank == size-1 && processRank == size-1) {
         buffer = alloc3d(r_last_process, r_last_process, N+1);
     } else if (myRank == size-1) {
@@ -35,30 +27,8 @@ double ***alloc_memory_for_first_receive(int myRank, int processRank, int size, 
     return buffer;
 }
 
-void clear_memory_after_first_receive(double*** buffer, int myRank, int processRank, int size, int r_last_process, int r) {
-    delete[] buffer[0][0];
-    if (myRank == size-1 && processRank == size-1) {
-        for (int i = 0; i < r_last_process; ++i) {
-            delete[] buffer[i];
-        }
-    } else if (myRank == size-1) {
-        for (int i = 0; i < r_last_process; ++i) {
-            delete[] buffer[i];
-        }
-    } else if (processRank == size-1) {
-        for (int i = 0; i < r; ++i) {
-            delete[] buffer[i];
-        }
-    } else {
-        for (int i = 0; i < r; ++i) {
-            delete[] buffer[i];
-        }
-    }
-    delete[] buffer;
-}
-
-double ***alloc_memory_for_second_receive(int myRank, int processRank, int size, int r_last_process, int r, int N) {
-    double*** buffer;
+buffer3D alloc_memory_for_second_receive(int myRank, int processRank, int size, int r_last_process, int r, int N) {
+    buffer3D buffer;
     if (myRank == size-1 && processRank == size-1) {
         buffer = alloc3d(r_last_process, r_last_process, N+1);
     } else if (myRank == size-1) {
@@ -70,29 +40,6 @@ double ***alloc_memory_for_second_receive(int myRank, int processRank, int size,
     }
     return buffer;
 }
-
-void clear_memory_after_second_receive(double*** buffer, int myRank, int processRank, int size, int r_last_process, int r) {
-    delete[] buffer[0][0];
-    if (myRank == size-1 && processRank == size-1) {
-        for (int i = 0; i < r_last_process; ++i) {
-            delete[] buffer[i];
-        }
-    } else if (myRank == size-1) {
-        for (int i = 0; i < r; ++i) {
-            delete[] buffer[i];
-        }
-    } else if (processRank == size-1) {
-        for (int i = 0; i < r_last_process; ++i) {
-            delete[] buffer[i];
-        }
-    } else {
-        for (int i = 0; i < r; ++i) {
-            delete[] buffer[i];
-        }
-    }
-    delete [] buffer;
-}
-
 
 // так как сторона куба не всегда кратна кол-ву процессов, то надо посчитать куб какого размера должны прислать текущему процессу
 int calculate_receive_count(int N, int myRank, int processRank, int size, int r, int r_last_process) {
@@ -129,11 +76,11 @@ int main(int argc, char* argv[]) {
     int r = (N+1 + size - 1) / size;
     int r_last_process = (N+1) - r * (size-1);
 
-    double *** y = alloc3d(N+1, N+1, N+1);
+    buffer3D y = alloc3d(N+1, N+1, N+1);
     for (int i = 0; i <= N; i++) {
         for (int j = r * myRank; j < (myRank == size -1 ? N+1 : (myRank+1) * r); j++) {
             for (int k = 0; k <= N; k++) {
-                y[i][j][k] = func::u0({i*h, j*h, k*h});
+                y.get(i, j, k) = func::u0({i*h, j*h, k*h});
             }
         }
     }
@@ -154,10 +101,10 @@ int main(int argc, char* argv[]) {
             row_curr = i * h;
             for (int k = r * myRank; k < (myRank == size -1 ? N+1 : (myRank+1) * r); ++k) {
                 col_curr = k * h;
-                y[0][k][i] = func::a0({row_curr, col_curr}, t_curr);
-                y[N][k][i] = func::a1({row_curr, col_curr}, t_curr);
-                y[i][k][0] = func::c0({row_curr, col_curr}, t_curr);
-                y[i][k][N] = func::c1({row_curr, col_curr}, t_curr);
+                y.get(0, k, i) = func::a0({row_curr, col_curr}, t_curr);
+                y.get(N, k, i) = func::a1({row_curr, col_curr}, t_curr);
+                y.get(i, k, 0) = func::c0({row_curr, col_curr}, t_curr);
+                y.get(i, k, N) = func::c1({row_curr, col_curr}, t_curr);
             }
         }
 
@@ -166,9 +113,9 @@ int main(int argc, char* argv[]) {
             for (int k = 0; k <= N; ++k) {
                 col_curr = k * h;
                 if (myRank == 0) {
-                    y[i][0][k] = func::b0({row_curr, col_curr}, t_curr);
+                    y.get(i, 0, k) = func::b0({row_curr, col_curr}, t_curr);
                 } else if (myRank == size -1) {
-                    y[i][N][k] = func::b1({row_curr, col_curr}, t_curr);
+                    y.get(i, N, k) = func::b1({row_curr, col_curr}, t_curr);
                 }
             }
         }
@@ -183,11 +130,11 @@ int main(int argc, char* argv[]) {
                 bi[0] = func::a0({x2_curr, x3_curr}, t_curr);
                 for (int i1 = 1; i1 < N; ++i1) {
                     ai[i1] = 1.0 / (2.0 + eps - ai[i1-1]);
-                    bi[i1] = (y[i1+1][i2][i3] + y[i1-1][i2][i3] + bi[i1-1] + (eps - 2.0) * y[i1][i2][i3]) * ai[i1];
+                    bi[i1] = (y.get(i1+1, i2, i3) + y.get(i1-1, i2 ,i3) + bi[i1-1] + (eps - 2.0) * y.get(i1, i2, i3)) * ai[i1];
                 }
-                y[N][i2][i3] = func::a1({x2_curr, x3_curr}, t_curr);
+                y.get(N, i2, i3) = func::a1({x2_curr, x3_curr}, t_curr);
                 for (int i1 = N - 1; i1 >= 0; --i1) {
-                    y[i1][i2][i3] = ai[i1] * y[i1+1][i2][i3] + bi[i1];
+                    y.get(i1, i2, i3) = ai[i1] * y.get(i1+1, i2, i3) + bi[i1];
                 }
             }
         }
@@ -204,7 +151,7 @@ int main(int argc, char* argv[]) {
                 MPI_Type_create_subarray(3, bigsizes, subsizes, starts, MPI_ORDER_C, MPI_DOUBLE, &subarray_3d);
                 MPI_Type_commit(&subarray_3d);
                 int send_request_index = i < myRank ? i : i-1;
-                MPI_Isend(&(y[0][0][0]), 1, subarray_3d, i, 100500, MPI_COMM_WORLD, &send_requests[send_request_index]);
+                MPI_Isend(&(y.get(0, 0, 0)), 1, subarray_3d, i, 100500, MPI_COMM_WORLD, &send_requests[send_request_index]);
                 MPI_Type_free(&subarray_3d);
             }
         }
@@ -214,19 +161,18 @@ int main(int argc, char* argv[]) {
             int index = i;
             if (i != myRank) {
                 int receive_count = calculate_receive_count(N, myRank, i, size, r, r_last_process);
-                double *** buffer = alloc_memory_for_first_receive(myRank, i, size, r_last_process, r, N);
+                buffer3D buffer = alloc_memory_for_first_receive(myRank, i, size, r_last_process, r, N);
 
-                MPI_Irecv(&(buffer[0][0][0]), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
+                MPI_Irecv(&(buffer.get(0, 0, 0)), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
 
                 for (int i1 = myRank*r; i1 < (myRank == size -1 ? N+1 : (myRank+1) * r); ++i1) {
                     for (int i2 = index*r; i2 < (index == size -1 ? N+1 : (index+1) * r); ++i2) {
                         for (int i3 = 0; i3 <= N; ++i3) {
-                            y[i1][i2][i3] = buffer[i1-myRank*r][i2-index*r][i3];
+                            y.get(i1, i2, i3) = buffer.get(i1-myRank*r, i2-index*r, i3);
                         }
                     }
                 }
-                clear_memory_after_first_receive(buffer, myRank, i, size, r_last_process, r);
             }
         }
         MPI_Waitall(size-1, send_requests, MPI_STATUS_IGNORE);
@@ -243,11 +189,11 @@ int main(int argc, char* argv[]) {
                 bi[0] = func::b0({x1_curr, x3_curr}, t_curr);
                 for (int i2 = 1; i2 < N; ++i2) {
                     ai[i2] = 1.0 / (2.0 + eps - ai[i2-1]);
-                    bi[i2] = (y[i1][i2+1][i3] + y[i1][i2-1][i3] + bi[i2-1] + (eps - 2.0) * y[i1][i2][i3]) * ai[i2];
+                    bi[i2] = (y.get(i1, i2+1, i3) + y.get(i1, i2-1, i3) + bi[i2-1] + (eps - 2.0) * y.get(i1, i2, i3)) * ai[i2];
                 }
-                y[i1][N][i3] = func::b1({x1_curr, x3_curr}, t_curr);
+                y.get(i1, N, i3) = func::b1({x1_curr, x3_curr}, t_curr);
                 for (int i2 = N - 1; i2 >= 0; --i2) {
-                    y[i1][i2][i3] = ai[i2] * y[i1][i2+1][i3] + bi[i2];
+                    y.get(i1, i2, i3) = ai[i2] * y.get(i1, i2+1, i3) + bi[i2];
                 }
             }
         }
@@ -265,11 +211,11 @@ int main(int argc, char* argv[]) {
                 bi[0] = func::c0({x1_curr, x2_curr}, t_curr);
                 for (int i3 = 1; i3 < N; ++i3) {
                     ai[i3] = 1.0 / (2.0 + eps - ai[i3 - 1]);
-                    bi[i3] = (y[i1][i2][i3+1] + y[i1][i2][i3-1] + bi[i3-1] + (eps - 2) * y[i1][i2][i3]) * ai[i3];
+                    bi[i3] = (y.get(i1, i2, i3+1) + y.get(i1, i2, i3-1) + bi[i3-1] + (eps - 2) * y.get(i1, i2, i3)) * ai[i3];
                 }
-                y[i1][i2][N] = func::b1({x1_curr, x2_curr}, t_curr);
+                y.get(i1, i2, N) = func::b1({x1_curr, x2_curr}, t_curr);
                 for (int i3 = N - 1; i3 >= 0; --i3) {
-                    y[i1][i2][i3] = ai[i3] * y[i1][i2][i3+1] + bi[i3];
+                    y.get(i1, i2, i3) = ai[i3] * y.get(i1, i2, i3+1) + bi[i3];
                 }
             }
         }
@@ -282,8 +228,8 @@ int main(int argc, char* argv[]) {
                 x2_curr = i2 * h;
                 for (int i3 = 0; i3 <= N; ++i3) {
                     x3_curr = i3 * h;
-                    if (std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y[i1][i2][i3]) > error) {
-                        error = std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y[i1][i2][i3]);
+                    if (std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y.get(i1, i2, i3)) > error) {
+                        error = std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y.get(i1, i2, i3));
                     }
                 }
             }
@@ -303,7 +249,7 @@ int main(int argc, char* argv[]) {
                 MPI_Type_create_subarray(3, bigsizes, subsizes, starts, MPI_ORDER_C, MPI_DOUBLE, &subarray_3d);
                 MPI_Type_commit(&subarray_3d);
                 int send_request_index = i < myRank ? i : i-1;
-                MPI_Isend(&(y[0][0][0]), 1, subarray_3d, i, 100500, MPI_COMM_WORLD, &send_requests[send_request_index]);
+                MPI_Isend(&(y.get(0, 0, 0)), 1, subarray_3d, i, 100500, MPI_COMM_WORLD, &send_requests[send_request_index]);
                 MPI_Type_free(&subarray_3d);
             }
         }
@@ -312,19 +258,18 @@ int main(int argc, char* argv[]) {
             int index = i;
             if (i != myRank) {
                 int receive_count = calculate_receive_count(N, myRank, i, size, r, r_last_process);
-                double*** buffer = alloc_memory_for_second_receive(myRank, i, size, r_last_process, r, N);
+                buffer3D buffer = alloc_memory_for_second_receive(myRank, i, size, r_last_process, r, N);
 
-                MPI_Irecv(&(buffer[0][0][0]), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
+                MPI_Irecv(&(buffer.get(0, 0, 0)), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
 
                 for (int i1 = index*r; i1 < (index == size -1 ? N+1 : (index+1) * r); ++i1) {
                     for (int i2 = myRank*r; i2 < (myRank == size -1 ? N+1 : (myRank+1) * r); ++i2) {
                         for (int i3 = 0; i3 <= N; ++i3) {
-                            y[i1][i2][i3] = buffer[i1-index*r][i2-myRank*r][i3];
+                            y.get(i1, i2, i3) = buffer.get(i1-index*r, i2-myRank*r, i3);
                         }
                     }
                 }
-                clear_memory_after_second_receive(buffer, myRank, i, size, r_last_process, r);
             }
         }
     } // consts::j0
