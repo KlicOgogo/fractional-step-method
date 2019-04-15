@@ -88,7 +88,6 @@ double alphaArr[N1][N2][N3];
 double betaArr[N1][N2][N3];
 
 int main(int argc, char* argv[]) {
-
     MPI_Init(&argc, &argv);
 	int rank, pcnt;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -110,13 +109,13 @@ int main(int argc, char* argv[]) {
 		maxSize = N3;
 	}
 
-	double *alpha = malloc(sizeof(*alpha) * maxSize);
-	double *beta = malloc(sizeof(*beta) * maxSize);
+	double *alpha = new double[sizeof(*alpha) * maxSize];
+	double *beta = new double[sizeof(*beta) * maxSize];
 
 	const size_t splitSize = r2 * r3;
-	double *alphaLast = malloc(sizeof(*alphaLast) * splitSize);
-	double *betaLast = malloc(sizeof(*betaLast) * splitSize);
-	double *yLast = malloc(sizeof(*yLast) * splitSize);
+	double *alphaLast = new double[sizeof(*alphaLast) * splitSize];
+	double *betaLast = new double [sizeof(*betaLast) * splitSize];
+	double *yLast = new double[sizeof(*yLast) * splitSize];
 
 	for (int j = 0; j < T - 1; ++j) {
 		for (int q2 = 0; q2 < Q2; q2++) {
