@@ -3,10 +3,14 @@
  * ACHTUNG: assume N1 % pcnt =  0
  */
 
-#include <iostream>
+#include <cmath>
 #include <fstream>
-#include <math.h>
+#include <iostream>
 #include <mpi.h>
+
+#include "common/constants.h"
+#include "common/structures.h"
+#include "common/test_functions.h"
 
 #define N1 144
 #define N2 100
@@ -242,7 +246,7 @@ int main(int argc, char* argv[]) {
 		for (i1 = my_rank * r1; i1 < (my_rank + 1) * r1; ++i1) {
 			for (i2 = 0; i2 < N2; ++i2) {
 				for (i3 = 0; i3 < N3; ++i3) {
-					double diff = fabs(calcExactSolution(TAU * j, H1 * i1, H2 * i2, H3 * i3) - y[j][i1][i2][i3]);
+					double diff = std::abs(calcExactSolution(TAU * j, H1 * i1, H2 * i2, H3 * i3) - y[j][i1][i2][i3]);
 					if (diff > error) {
 						error = diff;
 					}

@@ -1,6 +1,6 @@
 #include <cmath>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include "mpi.h"
 
 #include "common/constants.h"
