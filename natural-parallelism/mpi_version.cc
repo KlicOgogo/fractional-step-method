@@ -7,23 +7,17 @@
 #include "common/structures.h"
 #include "common/test_functions.h"
 
-/**
- * Allocate contiguous 3d array
- */
-buffer3D alloc3d(int x, int y, int z) {
-    return buffer3D({x, y, z});
-}
-
+namespace {
 buffer3D first_recv_alloc(int my_rank, int process_rank, int size, int r_last, int r, int N) {
     int size_x = (my_rank == size-1) ? r_last : r;
     int size_y = (process_rank == size-1) ? r_last : r;
-    return alloc3d(size_x, size_y, N+1);
+    return buffer3D({size_x, size_y, N+1});
 }
 
 buffer3D second_recv_alloc(int my_rank, int process_rank, int size, int r_last, int r, int N) {
     int size_x = (process_rank == size-1) ? r_last : r;
     int size_y = (my_rank == size-1) ? r_last : r;
-    return alloc3d(size_x, size_y, N+1);
+    return buffer3D({size_x, size_y, N+1});
 }
 
 // calculating size of memory to receive
@@ -32,6 +26,7 @@ int calculate_receive_count(int N, int my_rank, int process_rank, int size, int 
     int second_multiplier = (process_rank == size-1) ? r_last : r;
     return first_multiplier * second_multiplier * (N+1);
 }
+} // namespace
 
 int main(int argc, char* argv[]) {
     std::ofstream output_file;
@@ -47,12 +42,11 @@ int main(int argc, char* argv[]) {
     if (argc == 2) {
         N = std::atoi(argv[1]);
     }
-
     const double h = consts::l / N; // grid step
     int r = (N + 1 + size - 1) / size;
     int r_last = (N + 1) - r * (size - 1);
 
-    buffer3D y = alloc3d(N+1, N+1, N+1);
+    buffer3D y = buffer3D({N+1, N+1, N+1});
     double x1_curr, x2_curr, x3_curr;
     for (int i = 0; i <= N; i++) {
         x1_curr = i * h;
@@ -110,7 +104,7 @@ int main(int argc, char* argv[]) {
                 bi[0] = func::a0({x2_curr, x3_curr}, t_curr);
                 for (int i1 = 1; i1 < N; ++i1) {
                     ai[i1] = 1.0 / (2.0 + eps - ai[i1-1]);
-                    bi[i1] = (y.get(i1+1, i2, i3) + y.get(i1-1, i2 ,i3) + bi[i1-1] + (eps - 2.0) * y.get(i1, i2, i3)) * ai[i1];
+                    bi[i1] = (y.get(i1+1, i2, i3) + y.get(i1-1, i2, i3) + bi[i1-1] + (eps - 2.0) * y.get(i1, i2, i3)) * ai[i1];
                 }
                 y.get(N, i2, i3) = func::a1({x2_curr, x3_curr}, t_curr);
                 for (int i1 = N - 1; i1 >= 0; --i1) {
@@ -120,13 +114,12 @@ int main(int argc, char* argv[]) {
         }
 
         for (int i = 0; i < size; ++i) {
-            if (i != my_rank) {  // i тот кому будем посылать
+            if (i != my_rank) {  // i to send
                 MPI_Datatype subarray_3d;
                 int starts[3] = {r*i, my_rank*r, 0};
-                int subsizes[3] = {
-                        i == size-1 ? r_last : r,      // если посылаем последнму
-                        my_rank == size-1 ? r_last : r, // если посылает последний
-                        N+1};
+                int subsizes[3] = {i == size-1 ? r_last : r, // if last to send
+                                   my_rank == size-1 ? r_last : r, // if last sends
+                                   N+1};
                 int bigsizes[3] = {N+1, N+1, N+1};
                 MPI_Type_create_subarray(3, bigsizes, subsizes, starts, MPI_ORDER_C, MPI_DOUBLE, &subarray_3d);
                 MPI_Type_commit(&subarray_3d);
@@ -142,7 +135,6 @@ int main(int argc, char* argv[]) {
             if (i != my_rank) {
                 int receive_count = calculate_receive_count(N, my_rank, i, size, r, r_last);
                 buffer3D buffer = first_recv_alloc(my_rank, i, size, r_last, r, N);
-
                 MPI_Irecv(&(buffer.get(0, 0, 0)), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
 
@@ -221,8 +213,8 @@ int main(int argc, char* argv[]) {
             if (i != my_rank) {
                 MPI_Datatype subarray_3d;
                 int starts[3] = {my_rank*r, r*i, 0};
-                int subsizes[3] = {my_rank == size-1 ? r_last : r, // если посылает последний
-                                   i == size-1 ? r_last : r,      // если посылаем последнму
+                int subsizes[3] = {my_rank == size-1 ? r_last : r, // if last sends
+                                   i == size-1 ? r_last : r,      // if last to send
                                    N+1};
                 int bigsizes[3] = {N+1, N+1, N+1};
                 MPI_Type_create_subarray(3, bigsizes, subsizes, starts, MPI_ORDER_C, MPI_DOUBLE, &subarray_3d);
@@ -238,7 +230,6 @@ int main(int argc, char* argv[]) {
             if (i != my_rank) {
                 int receive_count = calculate_receive_count(N, my_rank, i, size, r, r_last);
                 buffer3D buffer = second_recv_alloc(my_rank, i, size, r_last, r, N);
-
                 MPI_Irecv(&(buffer.get(0, 0, 0)), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
 
