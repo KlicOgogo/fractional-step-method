@@ -14,47 +14,22 @@ buffer3D alloc3d(int x, int y, int z) {
 }
 
 buffer3D first_recv_alloc(int my_rank, int process_rank, int size, int r_last_process, int r, int N) {
-    buffer3D buffer;
-    if (my_rank == size-1 && process_rank == size-1) {
-        buffer = alloc3d(r_last_process, r_last_process, N+1);
-    } else if (my_rank == size-1) {
-        buffer = alloc3d(r_last_process, r, N+1);
-    } else if (process_rank == size-1) {
-        buffer = alloc3d(r, r_last_process, N+1);
-    } else {
-        buffer = alloc3d(r, r, N+1);
-    }
-    return buffer;
+    int size_x = (my_rank == size-1) ? r_last_process : r;
+    int size_y = (process_rank == size-1) ? r_last_process : r;
+    return alloc3d(size_x, size_y, N+1);
 }
 
 buffer3D second_recv_alloc(int my_rank, int process_rank, int size, int r_last_process, int r, int N) {
-    buffer3D buffer;
-    if (my_rank == size-1 && process_rank == size-1) {
-        buffer = alloc3d(r_last_process, r_last_process, N+1);
-    } else if (my_rank == size-1) {
-        buffer = alloc3d(r, r_last_process, N+1);
-    } else if (process_rank == size-1) {
-        buffer = alloc3d(r_last_process, r, N+1);
-    } else {
-        buffer = alloc3d(r, r, N+1);
-    }
-    return buffer;
+    int size_x = (process_rank == size-1) ? r_last_process : r;
+    int size_y = (my_rank == size-1) ? r_last_process : r;
+    return alloc3d(size_x, size_y, N+1);
 }
 
-// так как сторона куба не всегда кратна кол-ву процессов, то надо посчитать куб какого размера должны прислать текущему процессу
+// calculating size of memory to receive
 int calculate_receive_count(int N, int my_rank, int process_rank, int size, int r, int r_last_process) {
-    int receive_count = N+1;
-    if (my_rank == size-1) {
-        receive_count *= r_last_process;
-    } else {
-        receive_count *= r;
-    }
-    if (process_rank == size-1) {
-        receive_count *= r_last_process;
-    } else {
-        receive_count *= r;
-    }
-    return receive_count;
+    int first_multiplier = (my_rank == size-1) ? r_last_process : r;
+    int second_multiplier = (process_rank == size-1) ? r_last_process : r;
+    return first_multiplier * second_multiplier * (N+1);
 }
 
 int main(int argc, char* argv[]) {
