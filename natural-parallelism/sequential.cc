@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "common/constants.h"
+#include "common/structures.h"
 #include "common/test_functions.h"
 
 void start_initialization(tensor3d& y, double h, int N) {

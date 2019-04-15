@@ -2,7 +2,7 @@
 
 #include <array>
 
-#include "common/constants.h"
+#include "common/structures.h"
 
 namespace func {
 

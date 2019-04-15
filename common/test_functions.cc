@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "common/constants.h"
+
 namespace func {
 
 double u(double3 x, double t) {

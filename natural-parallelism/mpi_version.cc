@@ -4,6 +4,7 @@
 #include "mpi.h"
 
 #include "common/constants.h"
+#include "common/structures.h"
 #include "common/test_functions.h"
 
 /**
