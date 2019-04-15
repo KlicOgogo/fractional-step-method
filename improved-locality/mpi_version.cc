@@ -3,8 +3,8 @@
  * ACHTUNG: assume N1 % pcnt =  0
  */
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <iostream>
+#include <fstream>
 #include <math.h>
 #include <mpi.h>
 
@@ -88,10 +88,15 @@ double alphaArr[N1][N2][N3];
 double betaArr[N1][N2][N3];
 
 int main(int argc, char* argv[]) {
+	std::ofstream output_file;
+    output_file.open("result.time", std::ios_base::app);
+
     MPI_Init(&argc, &argv);
-	int rank, pcnt;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	int my_rank, pcnt;
+	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &pcnt);
+
+	auto start = std::chrono::steady_clock::now();
 
 	const int r1 = N1 / pcnt; // should be N1 % pcnt = 0
 	const int r2 = (N2 + Q2 - 1) / Q2;
@@ -120,22 +125,22 @@ int main(int argc, char* argv[]) {
 	for (int j = 0; j < T - 1; ++j) {
 		for (int q2 = 0; q2 < Q2; q2++) {
 			for (int q3 = 0; q3 < Q3; q3++) {
-				if (rank) {
+				if (my_rank) {
 					// TODO: change to non blocking calls
-					MPI_Recv(alphaLast, splitSize, MPI_DOUBLE, rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					MPI_Recv(betaLast, splitSize, MPI_DOUBLE, rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					MPI_Recv(alphaLast, splitSize, MPI_DOUBLE, my_rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					MPI_Recv(betaLast, splitSize, MPI_DOUBLE, my_rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				}
 
 				for (int i2 = r2 * q2; i2 < MIN(r2 * (q2 + 1), N2); ++i2) {
 					for (int i3 = r3 * q3; i3 < MIN(r3 * (q3 + 1), N3); ++i3) {
 						int lastIdx = (i2 - r2 * q2) * r2 + i3 - r3 * q3;
-						if (rank == 0) {
+						if (my_rank == 0) {
 							alphaLast[lastIdx] = 0.;
 							betaLast[lastIdx] = a0[i2][i3][j];
 						}
 
-						const int startIdx = rank * r1 + 1;
-						const int stopIdx = MIN((rank + 1) * r1 + 1, N1 - 1);
+						const int startIdx = my_rank * r1 + 1;
+						const int stopIdx = MIN((my_rank + 1) * r1 + 1, N1 - 1);
 						alphaArr[startIdx - 1][i2][i3] = alphaLast[lastIdx];
 						betaArr[startIdx - 1][i2][i3] = betaLast[lastIdx];
 						for (i = startIdx; i < stopIdx; ++i) {
@@ -149,28 +154,28 @@ int main(int argc, char* argv[]) {
 						betaLast[lastIdx] = betaArr[stopIdx - 1][i2][i3];
 					}
 				}
-				if (rank != pcnt - 1) {
+				if (my_rank != pcnt - 1) {
 					// TODO: change to non blocking calls
-					MPI_Send(alphaLast, splitSize, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD);
-					MPI_Send(betaLast, splitSize, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD);
+					MPI_Send(alphaLast, splitSize, MPI_DOUBLE, my_rank + 1, 0, MPI_COMM_WORLD);
+					MPI_Send(betaLast, splitSize, MPI_DOUBLE, my_rank + 1, 0, MPI_COMM_WORLD);
 				}
 			}
 		}
 		for (int q2 = 0; q2 < Q2; q2++) {
 			for (int q3 = 0; q3 < Q3; q3++) {
-				if (rank != pcnt - 1) {
+				if (my_rank != pcnt - 1) {
 					// TODO: change to non blocking calls
-					MPI_Recv(yLast, splitSize, MPI_DOUBLE, rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					MPI_Recv(yLast, splitSize, MPI_DOUBLE, my_rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				}
 				for (i2 = r2 * q2; i2 < MIN(r2 * (q2 + 1), N2); ++i2) {
 					for (i3 = r3 * q3; i3 < MIN(r3 * (q3 + 1), N3); ++i3) {
 						int lastIdx = (i2 - r2 * q2) * r2 + i3 - r3 * q3;
-						int startIdx = (rank + 1) * r1 - 1;
-						if (rank == pcnt - 1) {
+						int startIdx = (my_rank + 1) * r1 - 1;
+						if (my_rank == pcnt - 1) {
 							yLast[lastIdx] = a1[i2][i3][j];
 							startIdx = N1 - 2;
 						}
-						const int stopIdx = rank * r1;
+						const int stopIdx = my_rank * r1;
 						tempY[0][startIdx + 1][i2][i3] = yLast[lastIdx];
 						for (i = startIdx; i >= stopIdx; --i) {
 							tempY[0][i][i2][i3] =
@@ -179,14 +184,14 @@ int main(int argc, char* argv[]) {
 						yLast[lastIdx] = tempY[0][stopIdx][i2][i3];
 					}
 				}
-				if (rank) {
+				if (my_rank) {
 					// TODO: change to non blocking calls
-					MPI_Send(yLast, splitSize, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD);
+					MPI_Send(yLast, splitSize, MPI_DOUBLE, my_rank - 1, 0, MPI_COMM_WORLD);
 				}
 			}
 		}
 
-		for (i1 = r1 * rank; i1 < r1 * (rank + 1); ++i1) {
+		for (i1 = r1 * my_rank; i1 < r1 * (my_rank + 1); ++i1) {
 			for (i3 = 0; i3 < N3; ++i3) {
 				alpha[0] = 0;
 				beta[0] = b0[i1][i3][j];
@@ -204,7 +209,7 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		for (i1 = r1 * rank; i1 < r1 * (rank + 1); ++i1) {
+		for (i1 = r1 * my_rank; i1 < r1 * (my_rank + 1); ++i1) {
 			for (i2 = 0; i2 < N2; ++i2) {
 				alpha[0] = 0;
 				beta[0] = c0[i1][i2][j];
@@ -224,17 +229,17 @@ int main(int argc, char* argv[]) {
 		}
 
 		// TODO: change to non blocking calls
-		if (rank != pcnt - 1) {
-			MPI_Recv(y[j + 1][(rank + 1) * r1 + 1], N2 * N3, MPI_DOUBLE, rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			MPI_Recv(y[j + 1][(rank + 1) * r1], N2 * N3, MPI_DOUBLE, rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		if (my_rank != pcnt - 1) {
+			MPI_Recv(y[j + 1][(my_rank + 1) * r1 + 1], N2 * N3, MPI_DOUBLE, my_rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			MPI_Recv(y[j + 1][(my_rank + 1) * r1], N2 * N3, MPI_DOUBLE, my_rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
-		if (rank) {
-			MPI_Send(y[j + 1][rank * r1 + 1], N2 * N3, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD);
-			MPI_Send(y[j + 1][rank * r1], N2 * N3, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD);
+		if (my_rank) {
+			MPI_Send(y[j + 1][my_rank * r1 + 1], N2 * N3, MPI_DOUBLE, my_rank - 1, 0, MPI_COMM_WORLD);
+			MPI_Send(y[j + 1][my_rank * r1], N2 * N3, MPI_DOUBLE, my_rank - 1, 0, MPI_COMM_WORLD);
 		}
 
 		double error = 0.;
-		for (i1 = rank * r1; i1 < (rank + 1) * r1; ++i1) {
+		for (i1 = my_rank * r1; i1 < (my_rank + 1) * r1; ++i1) {
 			for (i2 = 0; i2 < N2; ++i2) {
 				for (i3 = 0; i3 < N3; ++i3) {
 					double diff = fabs(calcExactSolution(TAU * j, H1 * i1, H2 * i2, H3 * i3) - y[j][i1][i2][i3]);
@@ -244,8 +249,16 @@ int main(int argc, char* argv[]) {
 				}
 			}
 		}
-		printf ("%f\n", error);
+		std::cout << error << '\n';
 	}
+
+	auto finish = std::chrono::steady_clock::now();
+    auto time_in_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start);
+    std::cout << "Execution time (in milliseconds): " << static_cast<float>(time_in_milliseconds.count()) << '\n';
+    if (my_rank == 0) {
+        output_file << N1+1 << " " << static_cast<float>(time_in_milliseconds.count()) << '\n';
+    }
+    output_file.close();
 
 	free(alpha);
 	free(beta);
