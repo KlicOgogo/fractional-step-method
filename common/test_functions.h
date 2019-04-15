@@ -2,8 +2,7 @@
 
 #include <array>
 
-using double2 = std::array<double, 2>;
-using double3 = std::array<double, 3>;
+#include "common/constants.h"
 
 namespace func {
 
