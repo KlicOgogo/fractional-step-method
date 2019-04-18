@@ -199,9 +199,7 @@ int main(int argc, char* argv[]) {
                 x2_curr = i2 * h;
                 for (int i3 = 0; i3 <= N; ++i3) {
                     x3_curr = i3 * h;
-                    if (std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y.get(i1, i2, i3)) > error) {
-                        error = std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y.get(i1, i2, i3));
-                    }
+                    error = std::max(error, std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y.get(i1, i2, i3)));
                 }
             }
         }

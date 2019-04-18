@@ -201,14 +201,11 @@ int main(int argc, char* argv[]) {
 			MPI_Send(y[j + 1][my_rank * r1], N * N, MPI_DOUBLE, my_rank - 1, 0, MPI_COMM_WORLD);
 		}
 
-		double error = 0.;
+		double error = 0.0;
 		for (i1 = my_rank * r1; i1 < (my_rank + 1) * r1; ++i1) {
 			for (i2 = 0; i2 < N; ++i2) {
 				for (i3 = 0; i3 < N; ++i3) {
-					double diff = std::abs(func::u({H * i1, H * i2, H * i3}, TAU * j) - y[j][i1][i2][i3]);
-					if (diff > error) {
-						error = diff;
-					}
+					error = std::max(error, std::abs(func::u({H * i1, H * i2, H * i3}, TAU * j) - y[j][i1][i2][i3]));
 				}
 			}
 		}
