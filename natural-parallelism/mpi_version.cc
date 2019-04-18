@@ -1,6 +1,6 @@
 #include <cmath>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include "mpi.h"
 
 #include "common/constants.h"
@@ -31,10 +31,10 @@ int calculate_receive_count(int N, int my_rank, int process_rank, int size, int 
 int main(int argc, char* argv[]) {
     std::ofstream output_file;
     output_file.open("result.time", std::ios_base::app);
-    int my_rank, size;
+    int my_rank, pcnt;
     MPI_Init(&argc, &argv);                    /* starts MPI */
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    /* get current process id */
-    MPI_Comm_size(MPI_COMM_WORLD, &size);      /* get number of processes */
+    MPI_Comm_size(MPI_COMM_WORLD, &pcnt);      /* get number of processes */
 
     auto start = std::chrono::steady_clock::now();
 
@@ -43,14 +43,14 @@ int main(int argc, char* argv[]) {
         N = std::atoi(argv[1]);
     }
     const double h = consts::l / N; // grid step
-    int r = (N + 1 + size - 1) / size;
-    int r_last = (N + 1) - r * (size - 1);
+    int r = (N + pcnt) / pcnt;
+    int r_last = (N + 1) - r * (pcnt - 1);
 
     buffer3D y = buffer3D({N+1, N+1, N+1});
     double x1_curr, x2_curr, x3_curr;
     for (int i = 0; i <= N; i++) {
         x1_curr = i * h;
-        for (int j = r * my_rank; j < (my_rank == size -1 ? N+1 : (my_rank+1) * r); j++) {
+        for (int j = r * my_rank; j < (my_rank == pcnt-1 ? N+1 : (my_rank+1) * r); j++) {
             x2_curr = j * h;
             for (int k = 0; k <= N; k++) {
                 x3_curr = k * h;
@@ -63,8 +63,8 @@ int main(int argc, char* argv[]) {
 
     MPI_Request recv_request = MPI_REQUEST_NULL;
     MPI_Status status;
-    MPI_Request send_requests[size-1];
-    MPI_Status statuses[size-1];
+    MPI_Request send_requests[pcnt-1];
+    MPI_Status statuses[pcnt-1];
 
     double error = 0;
     double t_curr;
@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
         double row_curr, col_curr;
         for (int i = 0; i <= N; ++i) {
             row_curr = i * h;
-            for (int k = r * my_rank; k < (my_rank == size -1 ? N+1 : (my_rank+1) * r); ++k) {
+            for (int k = r * my_rank; k < (my_rank == pcnt-1 ? N+1 : (my_rank+1) * r); ++k) {
                 col_curr = k * h;
                 y.get(0, k, i) = func::a0({row_curr, col_curr}, t_curr);
                 y.get(N, k, i) = func::a1({row_curr, col_curr}, t_curr);
@@ -88,14 +88,14 @@ int main(int argc, char* argv[]) {
                 col_curr = k * h;
                 if (my_rank == 0) {
                     y.get(i, 0, k) = func::b0({row_curr, col_curr}, t_curr);
-                } else if (my_rank == size -1) {
+                } else if (my_rank == pcnt-1) {
                     y.get(i, N, k) = func::b1({row_curr, col_curr}, t_curr);
                 }
             }
         }
 
         t_curr = (1.0 / 3 + j) * consts::t;
-        for (int i2 = r * my_rank; i2 < (my_rank == size -1 ? N+1 : (my_rank+1) * r); ++i2) {
+        for (int i2 = r * my_rank; i2 < (my_rank == pcnt-1 ? N+1 : (my_rank+1) * r); ++i2) {
             x2_curr = i2 * h;
             for (int i3 = 0; i3 <= N; ++i3) {
                 x3_curr = i3 * h;
@@ -113,12 +113,12 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        for (int i = 0; i < size; ++i) {
+        for (int i = 0; i < pcnt; ++i) {
             if (i != my_rank) {  // i to send
                 MPI_Datatype subarray_3d;
                 int starts[3] = {r*i, my_rank*r, 0};
-                int subsizes[3] = {i == size-1 ? r_last : r, // if last to send
-                                   my_rank == size-1 ? r_last : r, // if last sends
+                int subsizes[3] = {i == pcnt-1 ? r_last : r, // if last to send
+                                   my_rank == pcnt-1 ? r_last : r, // if last sends
                                    N+1};
                 int bigsizes[3] = {N+1, N+1, N+1};
                 MPI_Type_create_subarray(3, bigsizes, subsizes, starts, MPI_ORDER_C, MPI_DOUBLE, &subarray_3d);
@@ -130,16 +130,16 @@ int main(int argc, char* argv[]) {
         }
 
 
-        for (int i = 0; i < size; ++i) {
+        for (int i = 0; i < pcnt; ++i) {
             int index = i;
             if (i != my_rank) {
-                int receive_count = calculate_receive_count(N, my_rank, i, size, r, r_last);
-                buffer3D buffer = first_recv_alloc(my_rank, i, size, r_last, r, N);
+                int receive_count = calculate_receive_count(N, my_rank, i, pcnt, r, r_last);
+                buffer3D buffer = first_recv_alloc(my_rank, i, pcnt, r_last, r, N);
                 MPI_Irecv(&(buffer.get(0, 0, 0)), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
 
-                for (int i1 = my_rank*r; i1 < (my_rank == size -1 ? N+1 : (my_rank+1) * r); ++i1) {
-                    for (int i2 = index*r; i2 < (index == size -1 ? N+1 : (index+1) * r); ++i2) {
+                for (int i1 = my_rank*r; i1 < (my_rank == pcnt-1 ? N+1 : (my_rank+1) * r); ++i1) {
+                    for (int i2 = index*r; i2 < (index == pcnt-1 ? N+1 : (index+1) * r); ++i2) {
                         for (int i3 = 0; i3 <= N; ++i3) {
                             y.get(i1, i2, i3) = buffer.get(i1-my_rank*r, i2-index*r, i3);
                         }
@@ -147,12 +147,12 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        MPI_Waitall(size-1, send_requests, MPI_STATUS_IGNORE);
+        MPI_Waitall(pcnt-1, send_requests, MPI_STATUS_IGNORE);
 /*
         --------------------------------------------
 */
         t_curr = (2.0 / 3 + j) * consts::t;
-        for (int i1 = r * my_rank; i1 < (my_rank == size -1 ? N+1 : (my_rank+1) * r); ++i1) {
+        for (int i1 = r * my_rank; i1 < (my_rank == pcnt-1 ? N+1 : (my_rank+1) * r); ++i1) {
             x1_curr = i1 * h;
             for (int i3 = 0; i3 <= N; ++i3) {
                 x3_curr = i3 * h;
@@ -173,7 +173,7 @@ int main(int argc, char* argv[]) {
         --------------------------------------------
 */
         t_curr = (1.0 + j) * consts::t;
-        for (int i1 = r * my_rank; i1 < (my_rank == size -1 ? N+1 : (my_rank+1) * r); ++i1) {
+        for (int i1 = r * my_rank; i1 < (my_rank == pcnt-1 ? N+1 : (my_rank+1) * r); ++i1) {
             x1_curr = i1 * h;
             for (int i2 = 0; i2 <= N; ++i2) {
                 x2_curr = i2 * h;
@@ -193,15 +193,13 @@ int main(int argc, char* argv[]) {
 
         error = 0;
         t_curr = (j + 1) * consts::t;
-        for (int i1 = r * my_rank; i1 < (my_rank == size -1 ? N+1 : (my_rank+1) * r); ++i1) {
+        for (int i1 = r * my_rank; i1 < (my_rank == pcnt-1 ? N+1 : (my_rank+1) * r); ++i1) {
             x1_curr = i1 * h;
             for (int i2 = 0; i2 <= N; ++i2) {
                 x2_curr = i2 * h;
                 for (int i3 = 0; i3 <= N; ++i3) {
                     x3_curr = i3 * h;
-                    if (std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y.get(i1, i2, i3)) > error) {
-                        error = std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y.get(i1, i2, i3));
-                    }
+                    error = std::max(error, std::abs(func::u({x1_curr, x2_curr, x3_curr}, t_curr) - y.get(i1, i2, i3)));
                 }
             }
         }
@@ -209,12 +207,12 @@ int main(int argc, char* argv[]) {
         std::cout << my_rank << ": " << error << '\n';
         MPI_Barrier(MPI_COMM_WORLD);
 
-        for (int i = 0; i < size; ++i) {
+        for (int i = 0; i < pcnt; ++i) {
             if (i != my_rank) {
                 MPI_Datatype subarray_3d;
                 int starts[3] = {my_rank*r, r*i, 0};
-                int subsizes[3] = {my_rank == size-1 ? r_last : r, // if last sends
-                                   i == size-1 ? r_last : r,      // if last to send
+                int subsizes[3] = {my_rank == pcnt-1 ? r_last : r, // if last sends
+                                   i == pcnt-1 ? r_last : r,      // if last to send
                                    N+1};
                 int bigsizes[3] = {N+1, N+1, N+1};
                 MPI_Type_create_subarray(3, bigsizes, subsizes, starts, MPI_ORDER_C, MPI_DOUBLE, &subarray_3d);
@@ -225,16 +223,16 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        for (int i = 0; i < size; ++i) {
+        for (int i = 0; i < pcnt; ++i) {
             int index = i;
             if (i != my_rank) {
-                int receive_count = calculate_receive_count(N, my_rank, i, size, r, r_last);
-                buffer3D buffer = second_recv_alloc(my_rank, i, size, r_last, r, N);
+                int receive_count = calculate_receive_count(N, my_rank, i, pcnt, r, r_last);
+                buffer3D buffer = second_recv_alloc(my_rank, i, pcnt, r_last, r, N);
                 MPI_Irecv(&(buffer.get(0, 0, 0)), receive_count, MPI_DOUBLE, i, MPI_ANY_TAG, MPI_COMM_WORLD, &recv_request);
                 MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
 
-                for (int i1 = index*r; i1 < (index == size -1 ? N+1 : (index+1) * r); ++i1) {
-                    for (int i2 = my_rank*r; i2 < (my_rank == size -1 ? N+1 : (my_rank+1) * r); ++i2) {
+                for (int i1 = index*r; i1 < (index == pcnt-1 ? N+1 : (index+1) * r); ++i1) {
+                    for (int i2 = my_rank*r; i2 < (my_rank == pcnt-1 ? N+1 : (my_rank+1) * r); ++i2) {
                         for (int i3 = 0; i3 <= N; ++i3) {
                             y.get(i1, i2, i3) = buffer.get(i1-index*r, i2-my_rank*r, i3);
                         }
