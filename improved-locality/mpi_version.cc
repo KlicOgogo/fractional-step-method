@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
 	setBorderConditions();
 	setInitialApproximation();
 
-	double eps = 2 * H * H / TAU;
+	double eps = 2.0 * H * H / TAU;
 
 	constexpr int double_size = sizeof(eps);
 	tensor1d alpha = tensor1d(N);
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
 	tensor1d betaLast = tensor1d(splitSize);
 	tensor1d yLast = tensor1d(splitSize);
 
-	for (int j = 0; j < T - 1; ++j) {
+	for (j = 0; j < T - 1; ++j) {
 		for (int q2 = 0; q2 < Q2; q2++) {
 			for (int q3 = 0; q3 < Q3; q3++) {
 				if (my_rank) {
@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
 					for (int i3 = r3 * q3; i3 < std::min(r3 * (q3 + 1), N); ++i3) {
 						int lastIdx = (i2 - r2 * q2) * r2 + i3 - r3 * q3;
 						if (my_rank == 0) {
-							alphaLast[lastIdx] = 0.;
+							alphaLast[lastIdx] = 0.0;
 							betaLast[lastIdx] = a0[i2][i3][j];
 						}
 
@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
 						alphaArr[startIdx - 1][i2][i3] = alphaLast[lastIdx];
 						betaArr[startIdx - 1][i2][i3] = betaLast[lastIdx];
 						for (i = startIdx; i < stopIdx; ++i) {
-							alphaArr[i][i2][i3] = 1 / (2 + eps - alphaArr[i - 1][i2][i3]);
+							alphaArr[i][i2][i3] = 1 / (2.0 + eps - alphaArr[i - 1][i2][i3]);
 							betaArr[i][i2][i3] =
 								((y[j][i + 1][i2][i3] + y[j][i - 1][i2][i3] + betaArr[i - 1][i2][i3]) +
 								(eps - 2) * y[j][i][i2][i3]) /
