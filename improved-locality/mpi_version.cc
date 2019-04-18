@@ -15,29 +15,18 @@
 constexpr int N = 100;
 constexpr double H = 0.01;
 
-#define T 100
-#define Q2 30
-#define Q3 30
-#define TAU 0.01
-
-#define MIN(x, y) (((x) > (y)) ? (y) : (x))
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
-
+constexpr int T = 100;
+constexpr int Q2 = 30;
+constexpr int Q3 = 30;
+constexpr double TAU = 0.01;
 
 double y[T][N][N][N] = {{{{0.}}}};
-
 double a0[N][N][T];
 double a1[N][N][T];
-
 double b0[N][N][T];
 double b1[N][N][T];
-
 double c0[N][N][T];
 double c1[N][N][T];
-
-#define LAMBDA1 0.6
-#define LAMBDA2 0.8
-#define LAMBDA3 1.
 
 int i, i1, i2, i3, j;
 
@@ -107,8 +96,8 @@ int main(int argc, char* argv[]) {
 					MPI_Recv(betaLast, splitSize, MPI_DOUBLE, my_rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				}
 
-				for (int i2 = r2 * q2; i2 < MIN(r2 * (q2 + 1), N); ++i2) {
-					for (int i3 = r3 * q3; i3 < MIN(r3 * (q3 + 1), N); ++i3) {
+				for (int i2 = r2 * q2; i2 < std::min(r2 * (q2 + 1), N); ++i2) {
+					for (int i3 = r3 * q3; i3 < std::min(r3 * (q3 + 1), N); ++i3) {
 						int lastIdx = (i2 - r2 * q2) * r2 + i3 - r3 * q3;
 						if (my_rank == 0) {
 							alphaLast[lastIdx] = 0.;
@@ -116,7 +105,7 @@ int main(int argc, char* argv[]) {
 						}
 
 						const int startIdx = my_rank * r1 + 1;
-						const int stopIdx = MIN((my_rank + 1) * r1 + 1, N - 1);
+						const int stopIdx = std::min((my_rank + 1) * r1 + 1, N - 1);
 						alphaArr[startIdx - 1][i2][i3] = alphaLast[lastIdx];
 						betaArr[startIdx - 1][i2][i3] = betaLast[lastIdx];
 						for (i = startIdx; i < stopIdx; ++i) {
@@ -143,8 +132,8 @@ int main(int argc, char* argv[]) {
 					// TODO: change to non blocking calls
 					MPI_Recv(yLast, splitSize, MPI_DOUBLE, my_rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				}
-				for (i2 = r2 * q2; i2 < MIN(r2 * (q2 + 1), N); ++i2) {
-					for (i3 = r3 * q3; i3 < MIN(r3 * (q3 + 1), N); ++i3) {
+				for (i2 = r2 * q2; i2 < std::min(r2 * (q2 + 1), N); ++i2) {
+					for (i3 = r3 * q3; i3 < std::min(r3 * (q3 + 1), N); ++i3) {
 						int lastIdx = (i2 - r2 * q2) * r2 + i3 - r3 * q3;
 						int startIdx = (my_rank + 1) * r1 - 1;
 						if (my_rank == pcnt - 1) {
@@ -154,8 +143,7 @@ int main(int argc, char* argv[]) {
 						const int stopIdx = my_rank * r1;
 						tempY[0][startIdx + 1][i2][i3] = yLast[lastIdx];
 						for (i = startIdx; i >= stopIdx; --i) {
-							tempY[0][i][i2][i3] =
-								alphaArr[i][i2][i3] * tempY[0][i + 1][i2][i3] + betaArr[i][i2][i3];
+							tempY[0][i][i2][i3] = alphaArr[i][i2][i3] * tempY[0][i + 1][i2][i3] + betaArr[i][i2][i3];
 						}
 						yLast[lastIdx] = tempY[0][stopIdx][i2][i3];
 					}
