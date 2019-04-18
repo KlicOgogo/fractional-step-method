@@ -79,21 +79,22 @@ int main(int argc, char* argv[]) {
 
 	double eps = 2 * H * H / TAU;
 
-	double *alpha = new double[sizeof(*alpha) * N];
-	double *beta = new double[sizeof(*beta) * N];
+	constexpr int double_size = sizeof(eps);
+	tensor1d alpha = tensor1d(N);
+	tensor1d beta = tensor1d(N);
 
 	const size_t splitSize = r2 * r3;
-	double *alphaLast = new double[sizeof(*alphaLast) * splitSize];
-	double *betaLast = new double [sizeof(*betaLast) * splitSize];
-	double *yLast = new double[sizeof(*yLast) * splitSize];
+	tensor1d alphaLast = tensor1d(splitSize);
+	tensor1d betaLast = tensor1d(splitSize);
+	tensor1d yLast = tensor1d(splitSize);
 
 	for (int j = 0; j < T - 1; ++j) {
 		for (int q2 = 0; q2 < Q2; q2++) {
 			for (int q3 = 0; q3 < Q3; q3++) {
 				if (my_rank) {
 					// TODO: change to non blocking calls
-					MPI_Recv(alphaLast, splitSize, MPI_DOUBLE, my_rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-					MPI_Recv(betaLast, splitSize, MPI_DOUBLE, my_rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					MPI_Recv(alphaLast.data(), splitSize, MPI_DOUBLE, my_rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					MPI_Recv(betaLast.data(), splitSize, MPI_DOUBLE, my_rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				}
 
 				for (int i2 = r2 * q2; i2 < std::min(r2 * (q2 + 1), N); ++i2) {
@@ -121,8 +122,8 @@ int main(int argc, char* argv[]) {
 				}
 				if (my_rank != pcnt - 1) {
 					// TODO: change to non blocking calls
-					MPI_Send(alphaLast, splitSize, MPI_DOUBLE, my_rank + 1, 0, MPI_COMM_WORLD);
-					MPI_Send(betaLast, splitSize, MPI_DOUBLE, my_rank + 1, 0, MPI_COMM_WORLD);
+					MPI_Send(alphaLast.data(), splitSize, MPI_DOUBLE, my_rank + 1, 0, MPI_COMM_WORLD);
+					MPI_Send(betaLast.data(), splitSize, MPI_DOUBLE, my_rank + 1, 0, MPI_COMM_WORLD);
 				}
 			}
 		}
@@ -130,7 +131,7 @@ int main(int argc, char* argv[]) {
 			for (int q3 = 0; q3 < Q3; q3++) {
 				if (my_rank != pcnt - 1) {
 					// TODO: change to non blocking calls
-					MPI_Recv(yLast, splitSize, MPI_DOUBLE, my_rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					MPI_Recv(yLast.data(), splitSize, MPI_DOUBLE, my_rank + 1, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				}
 				for (i2 = r2 * q2; i2 < std::min(r2 * (q2 + 1), N); ++i2) {
 					for (i3 = r3 * q3; i3 < std::min(r3 * (q3 + 1), N); ++i3) {
@@ -150,7 +151,7 @@ int main(int argc, char* argv[]) {
 				}
 				if (my_rank) {
 					// TODO: change to non blocking calls
-					MPI_Send(yLast, splitSize, MPI_DOUBLE, my_rank - 1, 0, MPI_COMM_WORLD);
+					MPI_Send(yLast.data(), splitSize, MPI_DOUBLE, my_rank - 1, 0, MPI_COMM_WORLD);
 				}
 			}
 		}
@@ -209,7 +210,7 @@ int main(int argc, char* argv[]) {
 				}
 			}
 		}
-		std::cout << error << '\n';
+		std::cout << my_rank << ": " << error << '\n';
 	}
 
 	auto finish = std::chrono::steady_clock::now();
@@ -219,12 +220,6 @@ int main(int argc, char* argv[]) {
         output_file << N+1 << " " << static_cast<float>(time_in_milliseconds.count()) << '\n';
     }
     output_file.close();
-
-	free(alpha);
-	free(beta);
-	free(alphaLast);
-	free(betaLast);
-	free(yLast);
 	MPI_Finalize();
-	return EXIT_SUCCESS;
+	return 0;
 }
