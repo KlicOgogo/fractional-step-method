@@ -105,14 +105,11 @@ int main(int argc, char* argv[]) {
 						alphaArr[startIdx - 1][i2][i3] = alphaLast[lastIdx];
 						betaArr[startIdx - 1][i2][i3] = betaLast[lastIdx];
 						for (i = startIdx; i < stopIdx; ++i) {
-							alphaArr[i][i2][i3] = 1 / (2.0 + eps - alphaArr[i - 1][i2][i3]);
-							betaArr[i][i2][i3] =
-								((y[j][i + 1][i2][i3] + y[j][i - 1][i2][i3] + betaArr[i - 1][i2][i3]) +
-								(eps - 2) * y[j][i][i2][i3]) /
-									(2 + eps - alphaArr[i - 1][i2][i3]);
+							alphaArr[i][i2][i3] = 1.0 / (2.0 + eps - alphaArr[i-1][i2][i3]);
+							betaArr[i][i2][i3] = (y[j][i+1][i2][i3] + y[j][i-1][i2][i3] + betaArr[i-1][i2][i3] + (eps - 2.0) * y[j][i][i2][i3]) * alphaArr[i][i2][i3];
 						}
-						alphaLast[lastIdx] = alphaArr[stopIdx - 1][i2][i3];
-						betaLast[lastIdx] = betaArr[stopIdx - 1][i2][i3];
+						alphaLast[lastIdx] = alphaArr[stopIdx-1][i2][i3];
+						betaLast[lastIdx] = betaArr[stopIdx-1][i2][i3];
 					}
 				}
 				if (my_rank != pcnt - 1) {
@@ -137,9 +134,9 @@ int main(int argc, char* argv[]) {
 							startIdx = N - 2;
 						}
 						const int stopIdx = my_rank * r1;
-						tempY[0][startIdx + 1][i2][i3] = yLast[lastIdx];
+						tempY[0][startIdx+1][i2][i3] = yLast[lastIdx];
 						for (i = startIdx; i >= stopIdx; --i) {
-							tempY[0][i][i2][i3] = alphaArr[i][i2][i3] * tempY[0][i + 1][i2][i3] + betaArr[i][i2][i3];
+							tempY[0][i][i2][i3] = alphaArr[i][i2][i3] * tempY[0][i+1][i2][i3] + betaArr[i][i2][i3];
 						}
 						yLast[lastIdx] = tempY[0][stopIdx][i2][i3];
 					}
@@ -156,15 +153,12 @@ int main(int argc, char* argv[]) {
 				alpha[0] = 0;
 				beta[0] = b0[i1][i3][j];
 				for (i = 1; i < N - 1; ++i) {
-					alpha[i] = 1 / (2 + eps - alpha[i - 1]);
-					beta[i] =
-						((tempY[0][i1][i + 1][i3] + tempY[0][i1][i - 1][i3] + beta[i - 1]) +
-						(eps - 2) * tempY[0][i1][i][i3]) /
-							(2 + eps - alpha[i - 1]);
+					alpha[i] = 1.0 / (2.0 + eps - alpha[i-1]);
+					beta[i] = (tempY[0][i1][i+1][i3] + tempY[0][i1][i-1][i3] + beta[i-1] + (eps - 2.0) * tempY[0][i1][i][i3]) * alpha[i];
 				}
 				tempY[1][i1][N - 1][i3] = b1[i1][i3][j];
 				for (i = N - 2; i >= 0; --i) {
-					tempY[1][i1][i][i3] = alpha[i] * tempY[1][i1][i + 1][i3] + beta[i];
+					tempY[1][i1][i][i3] = alpha[i] * tempY[1][i1][i+1][i3] + beta[i];
 				}
 			}
 		}
@@ -174,15 +168,12 @@ int main(int argc, char* argv[]) {
 				alpha[0] = 0;
 				beta[0] = c0[i1][i2][j];
 				for (i = 1; i < N - 1; ++i) {
-					alpha[i] = 1 / (2 + eps - alpha[i - 1]);
-					beta[i] =
-						((tempY[1][i1][i2][i + 1] + tempY[1][i1][i2][i - 1] + beta[i - 1]) +
-						(eps - 2) * tempY[1][i1][i2][i]) /
-							(2 + eps - alpha[i - 1]);
+					alpha[i] = 1.0 / (2.0 + eps - alpha[i-1]);
+					beta[i] = (tempY[1][i1][i2][i+1] + tempY[1][i1][i2][i-1] + beta[i-1] + (eps - 2.0) * tempY[1][i1][i2][i]) * alpha[i];
 				}
-				y[j + 1][i1][i2][N - 1] = c1[i1][i2][j];
+				y[j+1][i1][i2][N-1] = c1[i1][i2][j];
 				for (i = N - 2; i >= 0; --i) {
-					y[j + 1][i1][i2][i] = alpha[i] * y[j + 1][i1][i2][i + 1] + beta[i];
+					y[j+1][i1][i2][i] = alpha[i] * y[j + 1][i1][i2][i+1] + beta[i];
 				}
 			}
 		}
