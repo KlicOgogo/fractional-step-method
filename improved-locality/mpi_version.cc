@@ -13,33 +13,30 @@
 #include "common/test_functions.h"
 
 constexpr int N = 100;
-constexpr double H = 0.01;
-
-constexpr int T = 100;
+const double h = consts::l / N; // grid step
 constexpr int Q2 = 30;
 constexpr int Q3 = 30;
-constexpr double TAU = 0.01;
 
-double y[T][N][N][N] = {{{{0.}}}};
-double a0[N][N][T];
-double a1[N][N][T];
-double b0[N][N][T];
-double b1[N][N][T];
-double c0[N][N][T];
-double c1[N][N][T];
+double y[consts::j0][N][N][N] = {{{{0.}}}};
+double a0[N][N][consts::j0];
+double a1[N][N][consts::j0];
+double b0[N][N][consts::j0];
+double b1[N][N][consts::j0];
+double c0[N][N][consts::j0];
+double c1[N][N][consts::j0];
 
 int i, i1, i2, i3, j;
 
 void setBorderConditions() {
 	for (i1 = 0; i1 < N; ++i1) {
 		for (i2 = 0; i2 < N; ++i2) {
-			for (j = 0; j < T; ++j) {
-				a0[i1][i2][j] = func::a0({i1 * H, i2 * H}, (j + 1.0 / 3.0) * TAU);
-				a1[i1][i2][j] = func::a1({i1 * H, i2 * H}, (j + 1.0 / 3.0) * TAU);
-				b0[i1][i2][j] = func::b0({i1 * H, i2 * H}, (j + 2.0 / 3.0) * TAU);
-				b1[i1][i2][j] = func::b1({i1 * H, i2 * H}, (j + 2.0 / 3.0) * TAU);
-				c0[i1][i2][j] = func::c0({i1 * H, i2 * H}, (j + 1.0) * TAU);
-				c1[i1][i2][j] = func::c1({i1 * H, i2 * H}, (j + 1.0) * TAU);
+			for (j = 0; j < consts::j0; ++j) {
+				a0[i1][i2][j] = func::a0({i1 * h, i2 * h}, (j + 1.0 / 3.0) * consts::t);
+				a1[i1][i2][j] = func::a1({i1 * h, i2 * h}, (j + 1.0 / 3.0) * consts::t);
+				b0[i1][i2][j] = func::b0({i1 * h, i2 * h}, (j + 2.0 / 3.0) * consts::t);
+				b1[i1][i2][j] = func::b1({i1 * h, i2 * h}, (j + 2.0 / 3.0) * consts::t);
+				c0[i1][i2][j] = func::c0({i1 * h, i2 * h}, (j + 1.0) * consts::t);
+				c1[i1][i2][j] = func::c1({i1 * h, i2 * h}, (j + 1.0) * consts::t);
 			}
 		}
 	}
@@ -49,7 +46,7 @@ void setInitialApproximation() {
 	for (i1 = 0; i1 < N; ++i1) {
 		for (i2 = 0; i2 < N; ++i2) {
 			for (i3 = 0; i3 < N; ++i3) {
-				y[0][i1][i2][i3] = func::u0({i1 * H, i2 * H, i3 * H});
+				y[0][i1][i2][i3] = func::u0({i1 * h, i2 * h, i3 * h});
 			}
 		}
 	}
@@ -77,18 +74,17 @@ int main(int argc, char* argv[]) {
 	setBorderConditions();
 	setInitialApproximation();
 
-	double eps = 2.0 * H * H / TAU;
+	double eps = 2.0 * h * h / consts::t;
 
 	constexpr int double_size = sizeof(eps);
 	tensor1d alpha = tensor1d(N);
 	tensor1d beta = tensor1d(N);
-
 	const size_t splitSize = r2 * r3;
 	tensor1d alphaLast = tensor1d(splitSize);
 	tensor1d betaLast = tensor1d(splitSize);
 	tensor1d yLast = tensor1d(splitSize);
 
-	for (j = 0; j < T - 1; ++j) {
+	for (j = 0; j < consts::j0 - 1; ++j) {
 		for (int q2 = 0; q2 < Q2; q2++) {
 			for (int q3 = 0; q3 < Q3; q3++) {
 				if (my_rank) {
@@ -104,7 +100,6 @@ int main(int argc, char* argv[]) {
 							alphaLast[lastIdx] = 0.0;
 							betaLast[lastIdx] = a0[i2][i3][j];
 						}
-
 						const int startIdx = my_rank * r1 + 1;
 						const int stopIdx = std::min((my_rank + 1) * r1 + 1, N - 1);
 						alphaArr[startIdx - 1][i2][i3] = alphaLast[lastIdx];
@@ -206,7 +201,7 @@ int main(int argc, char* argv[]) {
 		for (i1 = my_rank * r1; i1 < (my_rank + 1) * r1; ++i1) {
 			for (i2 = 0; i2 < N; ++i2) {
 				for (i3 = 0; i3 < N; ++i3) {
-					error = std::max(error, std::abs(func::u({H * i1, H * i2, H * i3}, TAU * j) - y[j][i1][i2][i3]));
+					error = std::max(error, std::abs(func::u({h * i1, h * i2, h * i3}, consts::t * j) - y[j][i1][i2][i3]));
 				}
 			}
 		}
